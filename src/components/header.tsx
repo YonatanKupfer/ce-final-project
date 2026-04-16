@@ -41,6 +41,11 @@ export function Header() {
                         </Button>
                     </Link>
                     <div className={`h-6 w-px bg-border ${isRtl ? "mr-1" : "ml-1"}`} />
+                    <Link href="/admin">
+                        <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                            {t("admin")}
+                        </Button>
+                    </Link>
                     <Link href={switchPath}>
                         <Button variant="outline" size="sm" className="text-xs sm:text-sm">
                             {t("switchLang")}

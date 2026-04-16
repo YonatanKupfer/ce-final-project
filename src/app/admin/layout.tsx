@@ -22,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [email, setEmail] = useState("");
     const [magicLinkSent, setMagicLinkSent] = useState(false);
     const [sending, setSending] = useState(false);
+    const [loginError, setLoginError] = useState<string | null>(null);
     const pathname = usePathname();
     const supabase = createSupabaseBrowserClient();
 
@@ -63,12 +64,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const handleLogin = async () => {
         if (!email.trim()) return;
         setSending(true);
-        await supabase.auth.signInWithOtp({
+        setLoginError(null);
+        const { error } = await supabase.auth.signInWithOtp({
             email: email.trim(),
             options: { emailRedirectTo: `${window.location.origin}/admin/pending` },
         });
         setSending(false);
-        setMagicLinkSent(true);
+        if (error) {
+            console.error("[admin login] signInWithOtp error:", error);
+            setLoginError(error.message);
+        } else {
+            setMagicLinkSent(true);
+        }
     };
 
     const handleLogout = async () => {
@@ -108,7 +115,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     קישור התחברות נשלח לכתובת <strong>{email}</strong>.
                                     <br />בדקו את תיבת הדואר שלכם ולחצו על הקישור.
                                 </p>
-                                <Button variant="ghost" size="sm" onClick={() => setMagicLinkSent(false)}>
+                                <Button variant="ghost" size="sm" onClick={() => { setMagicLinkSent(false); setLoginError(null); }}>
                                     שליחה מחדש
                                 </Button>
                             </>
@@ -122,11 +129,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         type="email"
                                         placeholder="your@email.com"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
                                         onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                                         dir="ltr"
                                         className="text-center"
                                     />
+                                    {loginError && (
+                                        <p className="text-sm text-destructive" dir="ltr" style={{textAlign:"left"}}>
+                                            {loginError}
+                                        </p>
+                                    )}
                                     <Button
                                         onClick={handleLogin}
                                         size="lg"
