@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -82,7 +83,7 @@ export default function AdminProjectsPage() {
     if (loading) {
         return (
             <div className="space-y-4">
-                <h1 className="text-2xl font-bold">כל הפרויקטים</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">כל הפרויקטים</h1>
                 <Skeleton className="h-96 w-full" />
             </div>
         );
@@ -98,10 +99,10 @@ export default function AdminProjectsPage() {
                     placeholder="חיפוש..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="max-w-xs"
+                    className="w-full sm:max-w-xs"
                 />
                 <Select value={trackFilter} onValueChange={(v) => setTrackFilter(v ?? "all")}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -114,8 +115,42 @@ export default function AdminProjectsPage() {
                 <Badge variant="secondary" className="px-3 py-2">{filtered.length} פרויקטים</Badge>
             </div>
 
-            {/* Table */}
-            <div className="rounded-lg border overflow-auto">
+            {/* Mobile card layout */}
+            <div className="md:hidden space-y-4">
+                {filtered.map((p) => (
+                    <Card key={p.id} className={p.is_taken ? "border-red-200 dark:border-red-800" : ""}>
+                        <CardContent className="p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="font-mono font-bold">{p.project_number || "—"}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${statusColors[p.status] || ""}`}>
+                                        {p.status}
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => { setEditProject(p); setEditData(p); }}
+                                    >
+                                        ✏️
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="font-medium">{p.title_he}</div>
+                            <div className="text-xs text-muted-foreground" dir="ltr">{p.title_en}</div>
+                            <div className="flex flex-wrap gap-2">
+                                <Badge variant="outline">{TRACKS[p.track as TrackId]?.label}</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">{p.supervisors_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                                {new Date(p.created_at).toLocaleDateString("he-IL")}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden md:block rounded-lg border overflow-auto">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-muted/50">
@@ -173,7 +208,7 @@ export default function AdminProjectsPage() {
 
             {/* Edit Dialog */}
             <Dialog open={!!editProject} onOpenChange={() => setEditProject(null)}>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" dir="rtl">
+                <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[80vh] overflow-y-auto" dir="rtl">
                     <DialogHeader>
                         <DialogTitle>עריכת פרויקט</DialogTitle>
                     </DialogHeader>

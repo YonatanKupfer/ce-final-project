@@ -57,7 +57,7 @@ export default function AssignedPage() {
     if (loading) {
         return (
             <div className="container mx-auto px-4 py-8">
-                <h1 className="text-3xl font-bold mb-6">{t("title")}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-6">{t("title")}</h1>
                 <Skeleton className="h-96 w-full" />
             </div>
         );
@@ -65,7 +65,7 @@ export default function AssignedPage() {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold tracking-tight mb-6">{t("title")}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">{t("title")}</h1>
 
             {registrations.length === 0 ? (
                 <Card>
@@ -74,46 +74,76 @@ export default function AssignedPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="rounded-lg border overflow-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/50">
-                                <TableHead className="w-16">{t("projectNumber")}</TableHead>
-                                <TableHead>{t("projectTitle")}</TableHead>
-                                <TableHead>{t("supervisor")}</TableHead>
-                                <TableHead>{t("students")}</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {registrations.map((r) => (
-                                <TableRow key={r.id}>
-                                    <TableCell className="font-mono font-bold text-lg">
-                                        {r.project?.project_number}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="font-medium">{r.project?.title_he}</div>
-                                        <div className="text-xs text-muted-foreground" dir="ltr">
-                                            {r.project?.title_en}
-                                        </div>
-                                        <Badge variant="outline" className="mt-1 text-xs">
+                <>
+                    {/* Mobile card layout */}
+                    <div className="md:hidden space-y-4">
+                        {registrations.map((r) => (
+                            <Card key={r.id}>
+                                <CardContent className="p-4 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-mono font-bold text-lg">{r.project?.project_number}</span>
+                                        <Badge variant="outline" className="text-xs">
                                             {TRACKS[r.project?.track as TrackId]?.label}
                                         </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                        <div>{r.project?.supervisors_name}</div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {r.project?.academic_supervisor_name}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="font-mono">
-                                        {last4(r.student1_id)}
-                                        {r.student2_id && ` / ${last4(r.student2_id)}`}
-                                    </TableCell>
+                                    </div>
+                                    <div className="font-medium">{r.project?.title_he}</div>
+                                    <div className="text-xs text-muted-foreground" dir="ltr">{r.project?.title_en}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        <span className="font-medium text-foreground">{t("supervisor")}:</span> {r.project?.supervisors_name}
+                                    </div>
+                                    {r.project?.academic_supervisor_name && (
+                                        <div className="text-xs text-muted-foreground">{r.project?.academic_supervisor_name}</div>
+                                    )}
+                                    <div className="text-sm font-mono">
+                                        <span className="font-medium text-foreground font-sans">{t("students")}:</span> {last4(r.student1_id)}{r.student2_id && ` / ${last4(r.student2_id)}`}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* Desktop table layout */}
+                    <div className="hidden md:block rounded-lg border overflow-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                    <TableHead className="w-16">{t("projectNumber")}</TableHead>
+                                    <TableHead>{t("projectTitle")}</TableHead>
+                                    <TableHead>{t("supervisor")}</TableHead>
+                                    <TableHead>{t("students")}</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
+                            </TableHeader>
+                            <TableBody>
+                                {registrations.map((r) => (
+                                    <TableRow key={r.id}>
+                                        <TableCell className="font-mono font-bold text-lg">
+                                            {r.project?.project_number}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{r.project?.title_he}</div>
+                                            <div className="text-xs text-muted-foreground" dir="ltr">
+                                                {r.project?.title_en}
+                                            </div>
+                                            <Badge variant="outline" className="mt-1 text-xs">
+                                                {TRACKS[r.project?.track as TrackId]?.label}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                            <div>{r.project?.supervisors_name}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {r.project?.academic_supervisor_name}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="font-mono">
+                                            {last4(r.student1_id)}
+                                            {r.student2_id && ` / ${last4(r.student2_id)}`}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </>
             )}
         </div>
     );

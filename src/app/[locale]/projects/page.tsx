@@ -68,7 +68,7 @@ export default function ProjectsPage() {
     if (loading) {
         return (
             <div className="container mx-auto px-4 py-8">
-                <h1 className="text-3xl font-bold mb-6">{t("title")}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-6">{t("title")}</h1>
                 <Skeleton className="h-96 w-full" />
             </div>
         );
@@ -76,19 +76,19 @@ export default function ProjectsPage() {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold tracking-tight mb-6">{t("title")}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">{t("title")}</h1>
 
             <div className="mb-6">
                 <Input
                     placeholder={`${t("title")} — חיפוש...`}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="max-w-md"
+                    className="w-full sm:max-w-md"
                 />
             </div>
 
             <Tabs defaultValue="all" className="space-y-4">
-                <TabsList className="flex flex-wrap h-auto gap-1">
+                <TabsList className="flex flex-wrap h-auto gap-1 overflow-x-auto">
                     <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         {t("allTracks")} ({allFiltered.length})
                     </TabsTrigger>
@@ -157,72 +157,122 @@ function ProjectTable({
     }
 
     return (
-        <div className="rounded-lg border overflow-auto">
-            <Table>
-                <TableHeader>
-                    <TableRow className="bg-muted/50">
-                        <TableHead className="w-16 sticky top-0">{t("projectNumber")}</TableHead>
-                        <TableHead className="sticky top-0">{t("projectTitle")}</TableHead>
-                        <TableHead className="sticky top-0">{t("supervisor")}</TableHead>
-                        <TableHead className="sticky top-0">{t("academicSupervisor")}</TableHead>
-                        <TableHead className="w-24 sticky top-0">{t("status")}</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {projects.map((p) => (
-                        <>
-                            <TableRow
-                                key={p.id}
-                                className={`cursor-pointer transition-colors hover:bg-muted/50 ${p.is_taken ? "bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-200" : ""
-                                    }`}
-                                onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                            >
-                                <TableCell className="font-mono font-bold text-lg">
-                                    {p.project_number}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="font-medium">{p[titleField]}</div>
-                                    <div className="text-xs text-muted-foreground" dir={titleField === "title_he" ? "ltr" : "rtl"}>
-                                        {titleField === "title_he" ? p.title_en : p.title_he}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-sm">{p.supervisors_name}</TableCell>
-                                <TableCell className="text-sm">{p.academic_supervisor_name}</TableCell>
-                                <TableCell>
-                                    <Badge variant={p.is_taken ? "destructive" : "secondary"}>
-                                        {p.is_taken ? t("taken") : t("available")}
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
+        <>
+            {/* Mobile card layout */}
+            <div className="md:hidden space-y-4">
+                {projects.map((p) => (
+                    <Card
+                        key={p.id}
+                        className={`cursor-pointer ${p.is_taken ? "border-red-200 dark:border-red-800" : ""}`}
+                        onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                    >
+                        <CardContent className="p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="font-mono font-bold text-lg">{p.project_number}</span>
+                                <Badge variant={p.is_taken ? "destructive" : "secondary"}>
+                                    {p.is_taken ? t("taken") : t("available")}
+                                </Badge>
+                            </div>
+                            <div className="font-medium">{p[titleField]}</div>
+                            <div className="text-xs text-muted-foreground" dir={titleField === "title_he" ? "ltr" : "rtl"}>
+                                {titleField === "title_he" ? p.title_en : p.title_he}
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                                <span>{p.supervisors_name}</span>
+                                {p.academic_supervisor_name && <span>• {p.academic_supervisor_name}</span>}
+                            </div>
                             {expandedId === p.id && (
-                                <TableRow key={`${p.id}-details`}>
-                                    <TableCell colSpan={5} className="bg-muted/30 p-6">
-                                        <div className="space-y-4 max-w-4xl">
-                                            <DetailSection label="תקציר / Abstract" value={p.abstract} />
-                                            <DetailSection label="מטרה / Objective" value={p.objective} />
-                                            <DetailSection label="תכולה / Scope" value={p.scope} />
-                                            {(p.prereq_course_1 || p.prereq_course_2) && (
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground mb-1">קורסי קדם / Prerequisites</p>
-                                                    {p.prereq_course_1 && <p className="text-sm">• {p.prereq_course_1}</p>}
-                                                    {p.prereq_course_2 && <p className="text-sm">• {p.prereq_course_2}</p>}
-                                                </div>
-                                            )}
-                                            <DetailSection label="מקורות / References" value={p.references_text} />
-                                            <Separator />
-                                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                                <span>📧 {p.supervisors_email}</span>
-                                                <span>📧 {p.academic_supervisor_email}</span>
-                                            </div>
+                                <div className="border-t pt-3 mt-3 space-y-3">
+                                    <DetailSection label="תקציר / Abstract" value={p.abstract} />
+                                    <DetailSection label="מטרה / Objective" value={p.objective} />
+                                    <DetailSection label="תכולה / Scope" value={p.scope} />
+                                    {(p.prereq_course_1 || p.prereq_course_2) && (
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground mb-1">קורסי קדם / Prerequisites</p>
+                                            {p.prereq_course_1 && <p className="text-sm">• {p.prereq_course_1}</p>}
+                                            {p.prereq_course_2 && <p className="text-sm">• {p.prereq_course_2}</p>}
+                                        </div>
+                                    )}
+                                    <DetailSection label="מקורות / References" value={p.references_text} />
+                                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                                        <span>📧 {p.supervisors_email}</span>
+                                        <span>📧 {p.academic_supervisor_email}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden md:block rounded-lg border overflow-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-muted/50">
+                            <TableHead className="w-16 sticky top-0">{t("projectNumber")}</TableHead>
+                            <TableHead className="sticky top-0">{t("projectTitle")}</TableHead>
+                            <TableHead className="sticky top-0">{t("supervisor")}</TableHead>
+                            <TableHead className="sticky top-0">{t("academicSupervisor")}</TableHead>
+                            <TableHead className="w-24 sticky top-0">{t("status")}</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {projects.map((p) => (
+                            <>
+                                <TableRow
+                                    key={p.id}
+                                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${p.is_taken ? "bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-200" : ""
+                                        }`}
+                                    onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                                >
+                                    <TableCell className="font-mono font-bold text-lg">
+                                        {p.project_number}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="font-medium">{p[titleField]}</div>
+                                        <div className="text-xs text-muted-foreground" dir={titleField === "title_he" ? "ltr" : "rtl"}>
+                                            {titleField === "title_he" ? p.title_en : p.title_he}
                                         </div>
                                     </TableCell>
+                                    <TableCell className="text-sm">{p.supervisors_name}</TableCell>
+                                    <TableCell className="text-sm">{p.academic_supervisor_name}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={p.is_taken ? "destructive" : "secondary"}>
+                                            {p.is_taken ? t("taken") : t("available")}
+                                        </Badge>
+                                    </TableCell>
                                 </TableRow>
-                            )}
-                        </>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
+                                {expandedId === p.id && (
+                                    <TableRow key={`${p.id}-details`}>
+                                        <TableCell colSpan={5} className="bg-muted/30 p-6">
+                                            <div className="space-y-4 max-w-4xl">
+                                                <DetailSection label="תקציר / Abstract" value={p.abstract} />
+                                                <DetailSection label="מטרה / Objective" value={p.objective} />
+                                                <DetailSection label="תכולה / Scope" value={p.scope} />
+                                                {(p.prereq_course_1 || p.prereq_course_2) && (
+                                                    <div>
+                                                        <p className="text-sm font-medium text-muted-foreground mb-1">קורסי קדם / Prerequisites</p>
+                                                        {p.prereq_course_1 && <p className="text-sm">• {p.prereq_course_1}</p>}
+                                                        {p.prereq_course_2 && <p className="text-sm">• {p.prereq_course_2}</p>}
+                                                    </div>
+                                                )}
+                                                <DetailSection label="מקורות / References" value={p.references_text} />
+                                                <Separator />
+                                                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                                    <span>📧 {p.supervisors_email}</span>
+                                                    <span>📧 {p.academic_supervisor_email}</span>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </>
     );
 }
 

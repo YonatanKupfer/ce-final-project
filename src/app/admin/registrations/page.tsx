@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -79,7 +80,7 @@ export default function AdminRegistrationsPage() {
     if (loading) {
         return (
             <div className="space-y-4">
-                <h1 className="text-2xl font-bold">הרשמות</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">הרשמות</h1>
                 <Skeleton className="h-96 w-full" />
             </div>
         );
@@ -94,12 +95,54 @@ export default function AdminRegistrationsPage() {
                     placeholder="חיפוש..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="max-w-xs"
+                    className="w-full sm:max-w-xs"
                 />
                 <Badge variant="secondary" className="px-3 py-2">{filtered.length} הרשמות</Badge>
             </div>
 
-            <div className="rounded-lg border overflow-auto">
+            {/* Mobile card layout */}
+            <div className="md:hidden space-y-4">
+                {filtered.map((r) => (
+                    <Card key={r.id}>
+                        <CardContent className="p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div className="font-medium text-sm">
+                                    {r.project?.project_number && <span className="font-mono me-1">#{r.project.project_number}</span>}
+                                    {r.project?.title_he || "—"}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${statusColors[r.status] || ""}`}>
+                                        {r.status}
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => { setEditReg(r); setEditData(r); }}
+                                    >
+                                        ✏️
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="text-sm">
+                                <span className="font-medium">סטודנט 1:</span> {r.student1_name}
+                                <span className="text-xs text-muted-foreground ms-1">{r.student1_id}</span>
+                            </div>
+                            {r.student2_name && (
+                                <div className="text-sm">
+                                    <span className="font-medium">סטודנט 2:</span> {r.student2_name}
+                                    <span className="text-xs text-muted-foreground ms-1">{r.student2_id}</span>
+                                </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                                {new Date(r.created_at).toLocaleDateString("he-IL")}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden md:block rounded-lg border overflow-auto">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-muted/50">
@@ -162,7 +205,7 @@ export default function AdminRegistrationsPage() {
 
             {/* Edit Dialog */}
             <Dialog open={!!editReg} onOpenChange={() => setEditReg(null)}>
-                <DialogContent className="max-w-lg" dir="rtl">
+                <DialogContent className="w-[calc(100vw-2rem)] max-w-lg" dir="rtl">
                     <DialogHeader>
                         <DialogTitle>עריכת הרשמה</DialogTitle>
                     </DialogHeader>

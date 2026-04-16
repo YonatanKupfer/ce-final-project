@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const NAV_ITEMS = [
     { href: "/admin/pending", label: "הצעות ממתינות", icon: "⏳" },
@@ -135,7 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         className="text-center"
                                     />
                                     {loginError && (
-                                        <p className="text-sm text-destructive" dir="ltr" style={{textAlign:"left"}}>
+                                        <p className="text-sm text-destructive" dir="ltr" style={{ textAlign: "left" }}>
                                             {loginError}
                                         </p>
                                     )}
@@ -166,8 +167,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <html lang="he" dir="rtl" className="h-full">
             <body className="min-h-full bg-background text-foreground">
                 <div className="flex min-h-screen">
-                    {/* Sidebar */}
-                    <aside className="w-64 border-l bg-muted/30 p-4 flex flex-col">
+                    {/* Desktop Sidebar */}
+                    <aside className="hidden md:flex w-64 border-l bg-muted/30 p-4 flex-col">
                         <div className="mb-6">
                             <h2 className="font-bold text-lg">לוח ניהול</h2>
                             <p className="text-sm text-muted-foreground truncate">{user.email}</p>
@@ -199,8 +200,51 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </div>
                     </aside>
 
-                    {/* Main Content */}
-                    <main className="flex-1 p-6 overflow-auto">{children}</main>
+                    {/* Mobile Header + Sheet */}
+                    <div className="flex-1 flex flex-col">
+                        <header className="md:hidden flex items-center justify-between border-b bg-muted/30 px-4 py-3">
+                            <h2 className="font-bold text-lg">לוח ניהול</h2>
+                            <Sheet>
+                                <SheetTrigger render={<Button variant="ghost" size="sm" className="text-xl px-2" />}>
+                                    ☰
+                                </SheetTrigger>
+                                <SheetContent side="right" className="w-64 p-4">
+                                    <SheetHeader>
+                                        <SheetTitle>תפריט</SheetTitle>
+                                    </SheetHeader>
+                                    <p className="text-sm text-muted-foreground truncate mb-4 mt-2">{user.email}</p>
+                                    <Separator className="mb-4" />
+                                    <nav className="space-y-1">
+                                        {NAV_ITEMS.map((item) => (
+                                            <Link key={item.href} href={item.href}>
+                                                <Button
+                                                    variant={pathname === item.href ? "secondary" : "ghost"}
+                                                    className="w-full justify-start gap-2"
+                                                >
+                                                    <span>{item.icon}</span>
+                                                    {item.label}
+                                                </Button>
+                                            </Link>
+                                        ))}
+                                    </nav>
+                                    <Separator className="my-4" />
+                                    <div className="space-y-2">
+                                        <Link href="/he">
+                                            <Button variant="ghost" className="w-full justify-start gap-2" size="sm">
+                                                🏠 דף הבית
+                                            </Button>
+                                        </Link>
+                                        <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-2" size="sm">
+                                            🚪 התנתקות
+                                        </Button>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </header>
+
+                        {/* Main Content */}
+                        <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
+                    </div>
                 </div>
             </body>
         </html>

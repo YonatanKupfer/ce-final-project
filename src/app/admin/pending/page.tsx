@@ -89,7 +89,7 @@ export default function PendingProjectsPage() {
     if (loading) {
         return (
             <div className="space-y-4">
-                <h1 className="text-2xl font-bold">הצעות ממתינות</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">הצעות ממתינות</h1>
                 {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-48 w-full" />
                 ))}
@@ -120,7 +120,7 @@ export default function PendingProjectsPage() {
                         className="cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => setExpandedId(expandedId === project.id ? null : project.id)}
                     >
-                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4">
                             <div className="space-y-1 flex-1">
                                 <CardTitle className="text-lg">{project.title_he}</CardTitle>
                                 <p className="text-sm text-muted-foreground" dir="ltr">
