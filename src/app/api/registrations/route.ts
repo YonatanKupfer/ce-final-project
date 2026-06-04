@@ -55,9 +55,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Send email to academic supervisor with approve/reject link
+        // Send email to academic supervisor with approve/reject buttons
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const decisionUrl = `${appUrl}/approve-registration/${registration.approval_token}`;
+        const approveUrl = `${decisionUrl}?action=approve`;
+        const rejectUrl = `${decisionUrl}?action=reject`;
 
         let studentInfo = `
       <tr><td style="padding: 8px; font-weight: bold;">שם סטודנט 1:</td><td style="padding: 8px;">${data.student1_name}</td></tr>
@@ -73,24 +75,54 @@ export async function POST(request: NextRequest) {
       `;
         }
 
-        await sendEmail({
-            to: project.academic_supervisor_email,
-            subject: `בקשת הרשמה לפרויקט: ${project.title_he}`,
-            html: wrapEmailHtml(`
-        <h2>בקשת הרשמה לפרויקט</h2>
-        <p><strong>פרויקט:</strong> #${project.project_number} — ${project.title_he}</p>
-        <h3>פרטי הסטודנטים:</h3>
-        <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+        // Guard: only send if the academic supervisor has a valid email on the project
+        const academicEmail = (project.academic_supervisor_email || "").trim();
+        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(academicEmail);
+
+        if (!isValidEmail) {
+            console.warn(
+                `[registrations] Project #${project.project_number} has a missing/invalid academic_supervisor_email ("${academicEmail}") — approval email not sent.`
+            );
+        } else {
+            await sendEmail({
+                to: academicEmail,
+                subject: `בקשת הרשמה לפרויקט: ${project.title_he}`,
+                html: wrapEmailHtml(`
+        <h2 style="margin-bottom: 4px;">בקשת הרשמה לפרויקט</h2>
+        <p style="color: #555; margin-top: 0;">התקבלה בקשת הרשמה הממתינה לאישורך כאחראי.ת אקדמי.ת.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 16px 0; background: #f8fafc; border-radius: 8px;">
+          <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px; font-size: 18px; font-weight: bold; color: #2563eb;">#${project.project_number}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט:</td><td style="padding: 8px;">${project.title_he}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;" dir="ltr">${project.title_en}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">מסלול:</td><td style="padding: 8px;">${project.track}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">מנחה:</td><td style="padding: 8px;">${project.supervisors_name}</td></tr>
+        </table>
+        <h3 style="margin-bottom: 4px;">פרטי הסטודנטים:</h3>
+        <table style="width:100%; border-collapse: collapse; margin: 8px 0 24px;">
           ${studentInfo}
         </table>
-        <p>נא לאשר או לדחות את הבקשה:</p>
-        <p style="margin-top: 20px;">
-          <a href="${decisionUrl}" style="background: #2563eb; color: white; padding: 12px 28px; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 16px;">
-            אישור / דחייה
-          </a>
-        </p>
+        <p style="font-weight: bold; margin-bottom: 16px;">נא לאשר או לדחות את הבקשה:</p>
+        <table style="border-collapse: collapse; margin: 0 auto;"><tr>
+          <td style="padding: 0 8px;">
+            <a href="${approveUrl}" style="background: #16a34a; color: #ffffff; padding: 14px 32px; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 16px; font-weight: bold;">
+              ✓ אישור
+            </a>
+          </td>
+          <td style="padding: 0 8px;">
+            <a href="${rejectUrl}" style="background: #dc2626; color: #ffffff; padding: 14px 32px; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 16px; font-weight: bold;">
+              ✕ דחייה
+            </a>
+          </td>
+        </tr></table>
+        <p style="color: #888; font-size: 13px; margin-top: 24px;">לחיצה על אחד הכפתורים תעביר אותך לעמוד אישור לפני קבלת ההחלטה הסופית.</p>
       `),
-        }).catch(console.error);
+            }).catch((err) =>
+                console.error(
+                    `[registrations] Failed to send approval email to ${academicEmail}:`,
+                    err
+                )
+            );
+        }
 
         // Notify staff
         const { data: staffEmails } = await supabase

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,13 +26,16 @@ interface RegistrationData {
     };
 }
 
-export default function SupervisorDecisionPage() {
+function DecisionContent() {
     const params = useParams();
     const token = params.token as string;
+    const searchParams = useSearchParams();
+    const presetAction = searchParams.get("action");
     const [registration, setRegistration] = useState<RegistrationData | null>(null);
     const [loading, setLoading] = useState(true);
     const [deciding, setDeciding] = useState(false);
     const [result, setResult] = useState<"approved" | "rejected" | "already" | "invalid" | null>(null);
+    const autoPrompted = useRef(false);
 
     useEffect(() => {
         async function loadRegistration() {
@@ -76,6 +79,17 @@ export default function SupervisorDecisionPage() {
             setDeciding(false);
         }
     };
+
+    // If the supervisor arrived via an email button (?action=approve|reject),
+    // pre-open the confirmation for that decision once the data has loaded.
+    useEffect(() => {
+        if (autoPrompted.current) return;
+        if (!registration) return;
+        if (presetAction !== "approve" && presetAction !== "reject") return;
+        autoPrompted.current = true;
+        handleDecision(presetAction === "approve" ? "approved" : "rejected");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [registration, presetAction]);
 
     if (loading) {
         return (
@@ -174,5 +188,21 @@ export default function SupervisorDecisionPage() {
                 </Card>
             </body>
         </html>
+    );
+}
+
+export default function SupervisorDecisionPage() {
+    return (
+        <Suspense
+            fallback={
+                <html lang="he" dir="rtl" className="h-full">
+                    <body className="min-h-full flex items-center justify-center bg-background text-foreground p-4">
+                        <Skeleton className="h-96 w-full max-w-lg" />
+                    </body>
+                </html>
+            }
+        >
+            <DecisionContent />
+        </Suspense>
     );
 }
