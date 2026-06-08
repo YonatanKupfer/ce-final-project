@@ -294,8 +294,8 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>שרשרת</Label>
                             <Select value={editData.track || ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
+                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                                <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                                     {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -303,7 +303,7 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>סטטוס</Label>
                             <Select value={editData.status || ""} onValueChange={(v) => setEditData({ ...editData, status: v as Project["status"] })}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="pending">pending</SelectItem>
                                     <SelectItem value="review">review</SelectItem>
@@ -332,8 +332,8 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>מומלץ גם לשרשרת</Label>
                             <Select value={editData.recommended_track || "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
+                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                                <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                                     <SelectItem value="none">—</SelectItem>
                                     {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
                                 </SelectContent>

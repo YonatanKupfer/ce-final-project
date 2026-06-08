@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 
+const TRACK_NUMBER_START: Record<string, number> = {
+    crypto: 101,
+    hardware: 201,
+    networks: 301,
+    algorithms: 401,
+    software: 501,
+    ai: 601,
+    signal: 701,
+};
+
+function nextFreeNumber(track: string, used: Set<number>): number {
+    const start = TRACK_NUMBER_START[track] ?? 101;
+    let n = start;
+    while (used.has(n)) n++;
+    used.add(n);
+    return n;
+}
+
 // POST /api/admin/academic-years/[id]/carry-over
 // Copies all approved + not-taken projects from year [id] into the currently-active year.
 export async function POST(
@@ -41,7 +59,18 @@ export async function POST(
         return NextResponse.json({ success: true, count: 0 });
     }
 
-    // Build copies — reset fields that should be fresh for the new year
+    // Gather all project_numbers already used in the active year
+    const { data: existingInActive } = await supabase
+        .from("projects")
+        .select("project_number")
+        .eq("academic_year_id", activeYear.id)
+        .not("project_number", "is", null);
+
+    const usedNumbers = new Set<number>(
+        (existingInActive ?? []).map((p) => p.project_number as number)
+    );
+
+    // Build copies with auto-assigned project numbers per track
     const copies = projects.map((p) => ({
         academic_year_id: activeYear.id,
         title_he: p.title_he,
@@ -60,7 +89,7 @@ export async function POST(
         references_text: p.references_text,
         status: "approved",
         is_taken: false,
-        // project_number and edit_token are auto-assigned by DB defaults
+        project_number: nextFreeNumber(p.track, usedNumbers),
     }));
 
     const { data: inserted, error: insertError } = await supabase

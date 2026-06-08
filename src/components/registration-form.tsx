@@ -115,7 +115,13 @@ export function RegistrationForm() {
                                 onValueChange={(val) => { if (val) setValue("project_id", val, { shouldValidate: true }); }}
                             >
                                 <SelectTrigger className="w-full">
-                                    <SelectValue placeholder={t("selectProject")} />
+                                    <span data-slot="select-value" className="flex flex-1 text-right">
+                                        {(() => {
+                                            const sel = projects.find((p) => p.id === watch("project_id"));
+                                            if (!sel) return <span className="text-muted-foreground">{t("selectProject")}</span>;
+                                            return <><span className="font-mono me-2">#{sel.project_number}</span>{sel.title_he}</>;
+                                        })()}
+                                    </span>
                                 </SelectTrigger>
                                 <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                                     {projects.map((p) => (
