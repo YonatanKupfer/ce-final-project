@@ -3,6 +3,23 @@ import { getAdminClient } from "@/lib/supabase";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
 import { TRACKS, type TrackId } from "@/lib/constants";
 
+const TRACK_NUMBER_START: Record<string, number> = {
+    crypto: 101,
+    hardware: 201,
+    networks: 301,
+    algorithms: 401,
+    software: 501,
+    ai: 601,
+    signal: 701,
+};
+
+function nextFreeNumber(track: string, used: Set<number>): number {
+    const start = TRACK_NUMBER_START[track] ?? 101;
+    let n = start;
+    while (used.has(n)) n++;
+    return n;
+}
+
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -26,21 +43,20 @@ export async function POST(
             return NextResponse.json({ error: "Already approved" }, { status: 400 });
         }
 
-        // Determine next project number for this track
+        // Determine next free project number for this track within the same academic year
         const track = project.track as TrackId;
         const trackInfo = TRACKS[track];
-        const { data: maxProject } = await supabase
+        const { data: existingInYear } = await supabase
             .from("projects")
             .select("project_number")
+            .eq("academic_year_id", project.academic_year_id)
             .eq("track", track)
-            .eq("status", "approved")
-            .order("project_number", { ascending: false })
-            .limit(1)
-            .single();
+            .not("project_number", "is", null);
 
-        const nextNumber = maxProject?.project_number
-            ? maxProject.project_number + 1
-            : trackInfo.numberStart;
+        const usedNumbers = new Set<number>(
+            (existingInYear ?? []).map((p) => p.project_number as number)
+        );
+        const nextNumber = nextFreeNumber(track, usedNumbers);
 
         // Update project
         const { data: updated, error } = await supabase
