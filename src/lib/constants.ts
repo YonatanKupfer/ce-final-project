@@ -1,8 +1,11 @@
 export const TRACKS = {
-    cyber: { id: "cyber", label: "Cyber Security", numberStart: 101 },
-    networks: { id: "networks", label: "Networks and Computation", numberStart: 201 },
-    data: { id: "data", label: "Data Analysis and Processing", numberStart: 301 },
-    hardware: { id: "hardware", label: "Hardware Design", numberStart: 401 },
+    crypto: { id: "crypto", label: "Cryptography and Cybersecurity", numberStart: 101 },
+    hardware: { id: "hardware", label: "Hardware and Chip Design", numberStart: 201 },
+    networks: { id: "networks", label: "Networks, Information and Quantum Computing", numberStart: 301 },
+    algorithms: { id: "algorithms", label: "Algorithms and Optimization", numberStart: 401 },
+    software: { id: "software", label: "Software Development", numberStart: 501 },
+    ai: { id: "ai", label: "AI and Data Analysis", numberStart: 601 },
+    signal: { id: "signal", label: "Signal Processing, Images and Graphics", numberStart: 701 },
 } as const;
 
 export type TrackId = keyof typeof TRACKS;

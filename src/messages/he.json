@@ -29,10 +29,13 @@
         "readOnlyBanner": "אתם צופים בשנה ארכיונית. פרויקטים והרשמות הם לצפייה בלבד."
     },
     "tracks": {
-        "cyber": "Cyber Security",
-        "networks": "Networks and Computation",
-        "data": "Data Analysis and Processing",
-        "hardware": "Hardware Design"
+        "crypto": "אבטחת מידע וCybersecurity",
+        "hardware": "תכן חומרה וChip Design",
+        "networks": "רשתות, תקשוב, אינפורמציה וחישוב קוואנטי",
+        "algorithms": "אלגוריתמים ואופטימיזציה",
+        "software": "פיתוח תוכנה",
+        "ai": "AI וניתוח נתונים",
+        "signal": "עיבוד אותות, תמונה וגרפיקה"
     },
     "landing": {
         "title": "מערכת ניהול פרויקטי גמר",

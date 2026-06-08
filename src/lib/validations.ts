@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 export const projectFormSchema = z.object({
     title_he: z.string().min(1, "שדה חובה"),
     title_en: z.string().min(1, "Required field"),
-    track: z.enum(["cyber", "networks", "data", "hardware"]),
+    track: z.enum(["crypto", "hardware", "networks", "algorithms", "software", "ai", "signal"]),
     recommended_track: z.string(),
     supervisors_name: z.string().min(1, "שדה חובה"),
     supervisors_email: z.string().email("כתובת אימייל לא תקינה"),

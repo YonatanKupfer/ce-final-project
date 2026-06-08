@@ -27,7 +27,11 @@ function YearSwitcher() {
             <p className="text-xs text-muted-foreground mb-1">שנה אקדמית</p>
             <Select value={selectedYear?.slug ?? ""} onValueChange={setSelectedSlug}>
                 <SelectTrigger className="w-full h-8 text-sm">
-                    <SelectValue placeholder="בחרו שנה" />
+                    <span data-slot="select-value" className="flex flex-1 text-left">
+                        {selectedYear
+                            ? `${selectedYear.label_he}${selectedYear.is_active ? " ✓" : ""}`
+                            : <span className="text-muted-foreground">בחרו שנה</span>}
+                    </span>
                 </SelectTrigger>
                 <SelectContent>
                     {years.map((y) => (

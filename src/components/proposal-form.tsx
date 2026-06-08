@@ -145,7 +145,7 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
               value={watchedValues.track}
               onValueChange={(val) => { if (val) setValue("track", val as TrackId, { shouldValidate: true }); }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("selectTrack")} />
               </SelectTrigger>
               <SelectContent>
@@ -168,7 +168,7 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
                 setValue("recommended_track", !val || val === "none" ? "" : val)
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("selectTrack")} />
               </SelectTrigger>
               <SelectContent>

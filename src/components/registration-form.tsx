@@ -114,10 +114,10 @@ export function RegistrationForm() {
                                 value={watch("project_id")}
                                 onValueChange={(val) => { if (val) setValue("project_id", val, { shouldValidate: true }); }}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                     <SelectValue placeholder={t("selectProject")} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                                     {projects.map((p) => (
                                         <SelectItem key={p.id} value={p.id}>
                                             <span className="font-mono me-2">#{p.project_number}</span>
