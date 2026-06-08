@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 
+const TRACK_NUMBER_START: Record<string, number> = {
+    crypto: 101,
+    hardware: 201,
+    networks: 301,
+    algorithms: 401,
+    software: 501,
+    ai: 601,
+    signal: 701,
+};
+
+function nextFreeNumber(track: string, used: Set<number>): number {
+    const start = TRACK_NUMBER_START[track] ?? 101;
+    let n = start;
+    while (used.has(n)) n++;
+    used.add(n);
+    return n;
+}
+
 // POST /api/admin/projects/[id]/carry-over
 // Copies a single project into the currently-active academic year.
 export async function POST(
@@ -36,6 +54,17 @@ export async function POST(
         return NextResponse.json({ error: "Project already belongs to the active year" }, { status: 400 });
     }
 
+    // Find next free project number in this track within the active year
+    const { data: existingInActive } = await supabase
+        .from("projects")
+        .select("project_number")
+        .eq("academic_year_id", activeYear.id)
+        .not("project_number", "is", null);
+
+    const usedNumbers = new Set<number>(
+        (existingInActive ?? []).map((p) => p.project_number as number)
+    );
+
     // Insert the copy into the active year
     const { data: copy, error: insertError } = await supabase
         .from("projects")
@@ -57,6 +86,7 @@ export async function POST(
             references_text: project.references_text,
             status: "approved",
             is_taken: false,
+            project_number: nextFreeNumber(project.track, usedNumbers),
         })
         .select()
         .single();
