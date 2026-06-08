@@ -138,10 +138,10 @@ export default function AdminProjectsPage() {
                     className="w-full sm:max-w-xs"
                 />
                 <Select value={trackFilter} onValueChange={(v) => setTrackFilter(v ?? "all")}>
-                    <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectTrigger className="w-full sm:w-auto sm:min-w-[220px]">
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                         <SelectItem value="all">כל השרשראות</SelectItem>
                         {TRACK_LIST.map((t) => (
                             <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>

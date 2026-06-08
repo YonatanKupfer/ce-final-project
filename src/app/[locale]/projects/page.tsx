@@ -109,7 +109,11 @@ export default function ProjectsPage() {
                         <span className="text-sm text-muted-foreground whitespace-nowrap">{tCommon("academicYear")}:</span>
                         <Select value={selectedYearSlug ?? ""} onValueChange={setSelectedYearSlug}>
                             <SelectTrigger className="w-44 h-8 text-sm">
-                                <SelectValue />
+                                <span data-slot="select-value" className="flex flex-1 text-left">
+                                    {selectedYear
+                                        ? (locale === "he" ? selectedYear.label_he : selectedYear.label_en) + (selectedYear.is_active ? " ✓" : "")
+                                        : ""}
+                                </span>
                             </SelectTrigger>
                             <SelectContent>
                                 {years.map((y) => (
@@ -139,7 +143,7 @@ export default function ProjectsPage() {
             </div>
 
             <Tabs defaultValue="all" className="space-y-4">
-                <TabsList className="flex flex-wrap h-auto gap-1 overflow-x-auto">
+                <TabsList className="flex flex-wrap !h-auto gap-1 p-1">
                     <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         {t("allTracks")} ({allFiltered.length})
                     </TabsTrigger>
@@ -149,7 +153,7 @@ export default function ProjectsPage() {
                             value={track.id}
                             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                         >
-                            {tTracks(track.id)} ({getProjectsForTrack(track.id).length})
+                            <bdi>{tTracks(track.id)}</bdi> ({getProjectsForTrack(track.id).length})
                         </TabsTrigger>
                     ))}
                 </TabsList>
