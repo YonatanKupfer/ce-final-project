@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
@@ -9,12 +9,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AdminYearProvider, useAdminYear } from "@/app/admin/year-context";
 
 const NAV_ITEMS = [
     { href: "/admin/pending", label: "הצעות ממתינות", icon: "⏳" },
     { href: "/admin/projects", label: "כל הפרויקטים", icon: "📋" },
     { href: "/admin/registrations", label: "הרשמות", icon: "👥" },
+    { href: "/admin/settings", label: "הגדרות", icon: "⚙️" },
 ];
+
+function YearSwitcher() {
+    const { years, selectedYear, setSelectedSlug } = useAdminYear();
+    if (years.length === 0) return null;
+    return (
+        <div className="px-1 mb-3">
+            <p className="text-xs text-muted-foreground mb-1">שנה אקדמית</p>
+            <Select value={selectedYear?.slug ?? ""} onValueChange={setSelectedSlug}>
+                <SelectTrigger className="w-full h-8 text-sm">
+                    <SelectValue placeholder="בחרו שנה" />
+                </SelectTrigger>
+                <SelectContent>
+                    {years.map((y) => (
+                        <SelectItem key={y.id} value={y.slug}>
+                            {y.label_he} — {y.label_en}{y.is_active ? " ✓" : ""}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -28,6 +53,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const supabase = createSupabaseBrowserClient();
 
     useEffect(() => {
+        // Dev bypass: skip auth when NEXT_PUBLIC_DEV_ADMIN=true
+        if (process.env.NEXT_PUBLIC_DEV_ADMIN === "true") {
+            setUser({ email: "dev@local" } as User);
+            setIsStaff(true);
+            setLoading(false);
+            return;
+        }
+
         async function checkAuth() {
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
@@ -164,6 +197,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     return (
+        <AdminYearProvider>
+        <Suspense>
         <html lang="he" dir="rtl" className="h-full">
             <body className="min-h-full bg-background text-foreground">
                 <div className="flex min-h-screen">
@@ -174,6 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                         </div>
                         <Separator className="mb-4" />
+                        <YearSwitcher />
                         <nav className="space-y-1 flex-1">
                             {NAV_ITEMS.map((item) => (
                                 <Link key={item.href} href={item.href}>
@@ -214,6 +250,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     </SheetHeader>
                                     <p className="text-sm text-muted-foreground truncate mb-4 mt-2">{user.email}</p>
                                     <Separator className="mb-4" />
+                                    <YearSwitcher />
                                     <nav className="space-y-1">
                                         {NAV_ITEMS.map((item) => (
                                             <Link key={item.href} href={item.href}>
@@ -248,5 +285,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </body>
         </html>
+        </Suspense>
+        </AdminYearProvider>
     );
 }

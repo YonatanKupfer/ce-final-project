@@ -12,6 +12,15 @@ export const TRACK_LIST = Object.values(TRACKS);
 export type ProjectStatus = "pending" | "review" | "approved" | "rejected";
 export type RegistrationStatus = "pending" | "approved" | "rejected";
 
+export interface AcademicYear {
+    id: string;
+    slug: string;
+    label_en: string;
+    label_he: string;
+    is_active: boolean;
+    created_at: string;
+}
+
 export interface Project {
     id: string;
     project_number: number | null;
@@ -33,6 +42,7 @@ export interface Project {
     review_notes: string | null;
     edit_token: string;
     is_taken: boolean;
+    academic_year_id: string | null;
     created_at: string;
     updated_at: string;
 }

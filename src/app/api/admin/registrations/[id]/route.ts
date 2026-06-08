@@ -22,25 +22,70 @@ export async function PUT(
             }
         }
 
-        // If status changed to approved, also update the project
-        if (updateData.status === "approved") {
-            const { data: reg } = await supabase
+        // Handle project is_taken based on status transition
+        if ("status" in updateData) {
+            const { data: existing } = await supabase
                 .from("registrations")
-                .select("project_id")
+                .select("project_id, status")
                 .eq("id", id)
                 .single();
 
-            if (reg) {
-                await supabase
-                    .from("projects")
-                    .update({ is_taken: true })
-                    .eq("id", reg.project_id);
+            if (existing) {
+                const newStatus = updateData.status as string;
+                if (existing.status !== "approved" && newStatus === "approved") {
+                    await supabase
+                        .from("projects")
+                        .update({ is_taken: true })
+                        .eq("id", existing.project_id);
+                } else if (existing.status === "approved" && newStatus !== "approved") {
+                    await supabase
+                        .from("projects")
+                        .update({ is_taken: false })
+                        .eq("id", existing.project_id);
+                }
             }
         }
 
         const { error } = await supabase
             .from("registrations")
             .update(updateData)
+            .eq("id", id);
+
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch {
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const supabase = getAdminClient();
+
+        // If this was an approved registration, free the project
+        const { data: reg } = await supabase
+            .from("registrations")
+            .select("project_id, status")
+            .eq("id", id)
+            .single();
+
+        if (reg?.status === "approved") {
+            await supabase
+                .from("projects")
+                .update({ is_taken: false })
+                .eq("id", reg.project_id);
+        }
+
+        const { error } = await supabase
+            .from("registrations")
+            .delete()
             .eq("id", id);
 
         if (error) {

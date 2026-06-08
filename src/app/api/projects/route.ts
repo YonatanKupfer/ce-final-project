@@ -18,9 +18,17 @@ export async function POST(request: NextRequest) {
         const supabase = getAdminClient();
         const data = parsed.data;
 
+        // Resolve the active academic year so new proposals are tagged correctly
+        const { data: activeYear } = await supabase
+            .from("academic_years")
+            .select("id")
+            .eq("is_active", true)
+            .single();
+
         const { data: project, error } = await supabase
             .from("projects")
             .insert({
+                academic_year_id: activeYear?.id ?? null,
                 title_he: data.title_he,
                 title_en: data.title_en,
                 track: data.track,

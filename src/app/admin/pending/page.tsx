@@ -3,15 +3,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import type { Project } from "@/lib/constants";
-import { TRACKS, type TrackId } from "@/lib/constants";
+import { TRACKS, TRACK_LIST, type TrackId } from "@/lib/constants";
+import { useAdminYear } from "@/app/admin/year-context";
 
 export default function PendingProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -20,18 +25,26 @@ export default function PendingProjectsPage() {
     const [reviewNotes, setReviewNotes] = useState("");
     const [sending, setSending] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [editProject, setEditProject] = useState<Project | null>(null);
+    const [editData, setEditData] = useState<Partial<Project>>({});
+    const [saving, setSaving] = useState(false);
 
+    const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
 
     const loadProjects = useCallback(async () => {
-        const { data } = await supabase
+        let query = supabase
             .from("projects")
             .select("*")
             .in("status", ["pending", "review"])
             .order("created_at", { ascending: false });
+        if (selectedYear) {
+            query = query.eq("academic_year_id", selectedYear.id);
+        }
+        const { data } = await query;
         setProjects((data as Project[]) || []);
         setLoading(false);
-    }, []);
+    }, [selectedYear]);
 
     useEffect(() => {
         loadProjects();
@@ -83,6 +96,38 @@ export default function PendingProjectsPage() {
             loadProjects();
         } catch {
             toast.error("שגיאה בדחיית הפרויקט");
+        }
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editProject) return;
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/admin/projects/${editProject.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(editData),
+            });
+            if (!res.ok) throw new Error();
+            toast.success("השינויים נשמרו");
+            setEditProject(null);
+            loadProjects();
+        } catch {
+            toast.error("שגיאה בשמירה");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (project: Project) => {
+        if (!confirm(`למחוק את הפרויקט "${project.title_he}"?\nפעולה זו תמחק גם את כל ההרשמות לפרויקט.`)) return;
+        try {
+            const res = await fetch(`/api/admin/projects/${project.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error();
+            toast.success("הפרויקט נמחק");
+            loadProjects();
+        } catch {
+            toast.error("שגיאה במחיקה");
         }
     };
 
@@ -180,8 +225,21 @@ export default function PendingProjectsPage() {
                                 >
                                     📝 שליחת הערות
                                 </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => { setEditProject(project); setEditData(project); }}
+                                >
+                                    ✏️ עריכה
+                                </Button>
                                 <Button variant="destructive" onClick={() => handleReject(project)}>
                                     ❌ דחייה
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleDelete(project)}
+                                >
+                                    🗑️ מחיקה
                                 </Button>
                             </div>
                         </CardContent>
@@ -210,6 +268,118 @@ export default function PendingProjectsPage() {
                         </Button>
                         <Button onClick={handleSendReview} disabled={sending || !reviewNotes.trim()}>
                             {sending ? "שולח..." : "שליחת הערות"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Project Dialog */}
+            <Dialog open={!!editProject} onOpenChange={() => setEditProject(null)}>
+                <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[80vh] overflow-y-auto" dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle>עריכת פרויקט</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <Label>שם הפרויקט (עברית)</Label>
+                            <Input value={editData.title_he || ""} onChange={(e) => setEditData({ ...editData, title_he: e.target.value })} />
+                        </div>
+                        <div>
+                            <Label>Project Title</Label>
+                            <Input value={editData.title_en || ""} onChange={(e) => setEditData({ ...editData, title_en: e.target.value })} dir="ltr" />
+                        </div>
+                        <div>
+                            <Label>שרשרת</Label>
+                            <Select value={editData.track || ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>מומלץ גם לשרשרת</Label>
+                            <Select value={editData.recommended_track || "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">—</SelectItem>
+                                    {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>סטטוס</Label>
+                            <Select value={editData.status || ""} onValueChange={(v) => setEditData({ ...editData, status: v as Project["status"] })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="pending">pending</SelectItem>
+                                    <SelectItem value="review">review</SelectItem>
+                                    <SelectItem value="approved">approved</SelectItem>
+                                    <SelectItem value="rejected">rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>מספר פרויקט</Label>
+                            <Input value={String(editData.project_number || "")} onChange={(e) => setEditData({ ...editData, project_number: e.target.value ? parseInt(e.target.value) : null })} />
+                        </div>
+                        <div>
+                            <Label>מנחה</Label>
+                            <Input value={editData.supervisors_name || ""} onChange={(e) => setEditData({ ...editData, supervisors_name: e.target.value })} />
+                        </div>
+                        <div>
+                            <Label>אימייל מנחה</Label>
+                            <Input value={editData.supervisors_email || ""} onChange={(e) => setEditData({ ...editData, supervisors_email: e.target.value })} dir="ltr" />
+                        </div>
+                        <div>
+                            <Label>אחראי.ת אקדמי.ת</Label>
+                            <Input value={editData.academic_supervisor_name || ""} onChange={(e) => setEditData({ ...editData, academic_supervisor_name: e.target.value })} />
+                        </div>
+                        <div>
+                            <Label>אימייל אקדמי.ת</Label>
+                            <Input value={editData.academic_supervisor_email || ""} onChange={(e) => setEditData({ ...editData, academic_supervisor_email: e.target.value })} dir="ltr" />
+                        </div>
+                        <div>
+                            <Label>תקציר</Label>
+                            <Textarea value={editData.abstract || ""} onChange={(e) => setEditData({ ...editData, abstract: e.target.value })} rows={3} />
+                        </div>
+                        <div>
+                            <Label>מטרה</Label>
+                            <Textarea value={editData.objective || ""} onChange={(e) => setEditData({ ...editData, objective: e.target.value })} rows={3} />
+                        </div>
+                        <div>
+                            <Label>תכולה</Label>
+                            <Textarea value={editData.scope || ""} onChange={(e) => setEditData({ ...editData, scope: e.target.value })} rows={3} />
+                        </div>
+                        <div>
+                            <Label>קורס קדם #1</Label>
+                            <Input value={editData.prereq_course_1 || ""} onChange={(e) => setEditData({ ...editData, prereq_course_1: e.target.value })} />
+                        </div>
+                        <div>
+                            <Label>קורס קדם #2</Label>
+                            <Input value={editData.prereq_course_2 || ""} onChange={(e) => setEditData({ ...editData, prereq_course_2: e.target.value })} />
+                        </div>
+                        <div>
+                            <Label>מקורות</Label>
+                            <Textarea value={editData.references_text || ""} onChange={(e) => setEditData({ ...editData, references_text: e.target.value })} rows={3} />
+                        </div>
+                        <div>
+                            <Label>הערות תיקון</Label>
+                            <Textarea value={editData.review_notes || ""} onChange={(e) => setEditData({ ...editData, review_notes: e.target.value })} rows={2} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="pending_edit_is_taken"
+                                checked={!!editData.is_taken}
+                                onCheckedChange={(checked) => setEditData({ ...editData, is_taken: !!checked })}
+                            />
+                            <Label htmlFor="pending_edit_is_taken">פרויקט אויש</Label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditProject(null)}>ביטול</Button>
+                        <Button onClick={handleSaveEdit} disabled={saving}>
+                            {saving ? "שומר..." : "שמירת שינויים"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

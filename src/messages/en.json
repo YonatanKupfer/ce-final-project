@@ -24,7 +24,9 @@
         "error": "An error occurred",
         "switchLang": "עברית",
         "login": "Login",
-        "logout": "Logout"
+        "logout": "Logout",
+        "academicYear": "Academic Year",
+        "readOnlyBanner": "You are viewing an archived year. Projects and registrations are read-only."
     },
     "tracks": {
         "cyber": "Cyber Security",
@@ -138,5 +140,28 @@
         "confirmReject": "Reject this project?",
         "editField": "Edit",
         "saveChanges": "Save Changes"
+    },
+    "academicYears": {
+        "title": "Settings — Academic Years",
+        "createYear": "New Year",
+        "slug": "Year Code (slug)",
+        "slugHint": "Short identifier without spaces, e.g. 2627",
+        "labelEn": "English Label",
+        "labelHe": "Hebrew Label",
+        "create": "Create",
+        "creating": "Creating...",
+        "setActive": "Set as Active",
+        "setting": "Setting...",
+        "carryOver": "Carry Over Projects",
+        "carryingOver": "Carrying over...",
+        "active": "Active",
+        "archived": "Archived",
+        "carryOverConfirm": "Copy approved and available projects from this year to the active year?",
+        "setActiveConfirm": "Set this year as the active year?",
+        "yearCreated": "Academic year created successfully",
+        "yearActivated": "Year set as active",
+        "projectsCarriedOver": "projects carried over",
+        "noActiveYear": "No active year",
+        "cancel": "Cancel"
     }
 }

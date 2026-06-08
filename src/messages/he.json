@@ -24,7 +24,9 @@
         "error": "אירעה שגיאה",
         "switchLang": "English",
         "login": "התחברות",
-        "logout": "התנתקות"
+        "logout": "התנתקות",
+        "academicYear": "שנה אקדמית",
+        "readOnlyBanner": "אתם צופים בשנה ארכיונית. פרויקטים והרשמות הם לצפייה בלבד."
     },
     "tracks": {
         "cyber": "Cyber Security",
@@ -138,5 +140,28 @@
         "confirmReject": "האם לדחות את הפרויקט?",
         "editField": "עריכה",
         "saveChanges": "שמירת שינויים"
+    },
+    "academicYears": {
+        "title": "הגדרות — שנים אקדמיות",
+        "createYear": "שנה חדשה",
+        "slug": "קוד שנה (slug)",
+        "slugHint": "מזהה קצר ללא רווחים, למשל 2627",
+        "labelEn": "תווית אנגלית",
+        "labelHe": "תווית עברית",
+        "create": "יצירה",
+        "creating": "יוצר...",
+        "setActive": "הגדר כפעיל",
+        "setting": "מגדיר...",
+        "carryOver": "העבר פרויקטים",
+        "carryingOver": "מעביר...",
+        "active": "פעיל",
+        "archived": "ארכיון",
+        "carryOverConfirm": "להעביר פרויקטים מאושרים ופנויים משנה זו לשנה הפעילה?",
+        "setActiveConfirm": "להגדיר שנה זו כשנה הפעילה?",
+        "yearCreated": "שנה אקדמית נוצרה בהצלחה",
+        "yearActivated": "השנה הוגדרה כפעילה",
+        "projectsCarriedOver": "פרויקטים הועברו",
+        "noActiveYear": "אין שנה פעילה",
+        "cancel": "ביטול"
     }
 }

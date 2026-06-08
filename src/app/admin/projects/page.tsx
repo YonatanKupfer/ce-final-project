@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -17,6 +18,7 @@ import {
 import { toast } from "sonner";
 import type { Project } from "@/lib/constants";
 import { TRACKS, TRACK_LIST, type TrackId } from "@/lib/constants";
+import { useAdminYear } from "@/app/admin/year-context";
 
 export default function AdminProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -27,16 +29,23 @@ export default function AdminProjectsPage() {
     const [editData, setEditData] = useState<Partial<Project>>({});
     const [saving, setSaving] = useState(false);
 
+    const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
+    const isArchivedYear = selectedYear ? !selectedYear.is_active : false;
+    const [carryingOverId, setCarryingOverId] = useState<string | null>(null);
 
     const loadProjects = useCallback(async () => {
-        const { data } = await supabase
+        let query = supabase
             .from("projects")
             .select("*")
             .order("created_at", { ascending: false });
+        if (selectedYear) {
+            query = query.eq("academic_year_id", selectedYear.id);
+        }
+        const { data } = await query;
         setProjects((data as Project[]) || []);
         setLoading(false);
-    }, []);
+    }, [selectedYear]);
 
     useEffect(() => {
         loadProjects();
@@ -77,6 +86,33 @@ export default function AdminProjectsPage() {
             toast.error("שגיאה בשמירה");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDelete = async (project: Project) => {
+        if (!confirm(`למחוק את הפרויקט "${project.title_he}"?\nפעולה זו תמחק גם את כל ההרשמות לפרויקט.`)) return;
+        try {
+            const res = await fetch(`/api/admin/projects/${project.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error();
+            toast.success("הפרויקט נמחק");
+            loadProjects();
+        } catch {
+            toast.error("שגיאה במחיקה");
+        }
+    };
+
+    const handleCarryOver = async (project: Project) => {
+        if (!confirm(`להעביר את "${project.title_he}" לשנה הפעילה?`)) return;
+        setCarryingOverId(project.id);
+        try {
+            const res = await fetch(`/api/admin/projects/${project.id}/carry-over`, { method: "POST" });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error);
+            toast.success("הפרויקט הועבר לשנה הפעילה");
+        } catch (err: unknown) {
+            toast.error((err as Error).message || "שגיאה בהעברה");
+        } finally {
+            setCarryingOverId(null);
         }
     };
 
@@ -133,6 +169,14 @@ export default function AdminProjectsPage() {
                                     >
                                         ✏️
                                     </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => handleDelete(p)}
+                                    >
+                                        🗑️
+                                    </Button>
                                 </div>
                             </div>
                             <div className="font-medium">{p.title_he}</div>
@@ -144,6 +188,17 @@ export default function AdminProjectsPage() {
                             <div className="text-xs text-muted-foreground">
                                 {new Date(p.created_at).toLocaleDateString("he-IL")}
                             </div>
+                            {isArchivedYear && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full text-xs"
+                                    disabled={carryingOverId === p.id}
+                                    onClick={() => handleCarryOver(p)}
+                                >
+                                    {carryingOverId === p.id ? "מעביר..." : "↗ העבר לשנה הפעילה"}
+                                </Button>
+                            )}
                         </CardContent>
                     </Card>
                 ))}
@@ -189,16 +244,37 @@ export default function AdminProjectsPage() {
                                     {new Date(p.created_at).toLocaleDateString("he-IL")}
                                 </TableCell>
                                 <TableCell>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            setEditProject(p);
-                                            setEditData(p);
-                                        }}
-                                    >
-                                        ✏️
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                setEditProject(p);
+                                                setEditData(p);
+                                            }}
+                                        >
+                                            ✏️
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:text-destructive"
+                                            onClick={() => handleDelete(p)}
+                                        >
+                                            🗑️
+                                        </Button>
+                                        {isArchivedYear && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                title="העבר לשנה הפעילה"
+                                                disabled={carryingOverId === p.id}
+                                                onClick={() => handleCarryOver(p)}
+                                            >
+                                                {carryingOverId === p.id ? "..." : "↗"}
+                                            </Button>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -252,6 +328,34 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>תכולה</Label>
                             <Textarea value={editData.scope || ""} onChange={(e) => setEditData({ ...editData, scope: e.target.value })} rows={3} />
+                        </div>
+                        <div>
+                            <Label>מומלץ גם לשרשרת</Label>
+                            <Select value={editData.recommended_track || "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">—</SelectItem>
+                                    {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <EditField label="קורס קדם #1" value={editData.prereq_course_1 || ""} onChange={(v) => setEditData({ ...editData, prereq_course_1: v })} />
+                        <EditField label="קורס קדם #2" value={editData.prereq_course_2 || ""} onChange={(v) => setEditData({ ...editData, prereq_course_2: v })} />
+                        <div>
+                            <Label>מקורות</Label>
+                            <Textarea value={editData.references_text || ""} onChange={(e) => setEditData({ ...editData, references_text: e.target.value })} rows={3} />
+                        </div>
+                        <div>
+                            <Label>הערות תיקון</Label>
+                            <Textarea value={editData.review_notes || ""} onChange={(e) => setEditData({ ...editData, review_notes: e.target.value })} rows={2} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="edit_is_taken"
+                                checked={!!editData.is_taken}
+                                onCheckedChange={(checked) => setEditData({ ...editData, is_taken: !!checked })}
+                            />
+                            <Label htmlFor="edit_is_taken">פרויקט אויש</Label>
                         </div>
                     </div>
                     <DialogFooter>

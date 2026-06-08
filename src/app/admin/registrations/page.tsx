@@ -13,8 +13,10 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import type { Registration } from "@/lib/constants";
+import { useAdminYear } from "@/app/admin/year-context";
 
 export default function AdminRegistrationsPage() {
     const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -24,6 +26,7 @@ export default function AdminRegistrationsPage() {
     const [editData, setEditData] = useState<Partial<Registration>>({});
     const [saving, setSaving] = useState(false);
 
+    const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
 
     const loadRegistrations = useCallback(async () => {
@@ -31,9 +34,14 @@ export default function AdminRegistrationsPage() {
             .from("registrations")
             .select("*, project:projects(*)")
             .order("created_at", { ascending: false });
-        setRegistrations((data as Registration[]) || []);
+        const all = (data as Registration[]) || [];
+        // Filter by selected year via the joined project
+        const filtered = selectedYear
+            ? all.filter((r) => r.project?.academic_year_id === selectedYear.id)
+            : all;
+        setRegistrations(filtered);
         setLoading(false);
-    }, []);
+    }, [selectedYear]);
 
     useEffect(() => {
         loadRegistrations();
@@ -77,6 +85,38 @@ export default function AdminRegistrationsPage() {
         }
     };
 
+    const handleFree = async (reg: Registration) => {
+        if (!confirm(`לשחרר את הפרויקט "${reg.project?.title_he || ""}" מהסטודנט "${reg.student1_name}"?\nהרשמה תישאר במערכת עם סטטוס pending.`)) return;
+        try {
+            const res = await fetch(`/api/admin/registrations/${reg.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "pending" }),
+            });
+            if (!res.ok) throw new Error();
+            toast.success("הפרויקט שוחרר לרישום מחדש");
+            loadRegistrations();
+        } catch {
+            toast.error("שגיאה בשחרור הפרויקט");
+        }
+    };
+
+    const handleDelete = async (reg: Registration) => {
+        const isApproved = reg.status === "approved";
+        const msg = isApproved
+            ? `למחוק את הרשמת הסטודנט "${reg.student1_name}"?\nהסרת הסטודנט תשחרר את הפרויקט לרישום מחדש.`
+            : `למחוק את הרשמת הסטודנט "${reg.student1_name}"?`;
+        if (!confirm(msg)) return;
+        try {
+            const res = await fetch(`/api/admin/registrations/${reg.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error();
+            toast.success(isApproved ? "הסטודנט הוסר והפרויקט שוחרר" : "הרשמה נמחקה");
+            loadRegistrations();
+        } catch {
+            toast.error("שגיאה במחיקה");
+        }
+    };
+
     if (loading) {
         return (
             <div className="space-y-4">
@@ -114,12 +154,30 @@ export default function AdminRegistrationsPage() {
                                     <span className={`text-xs px-2 py-1 rounded-full ${statusColors[r.status] || ""}`}>
                                         {r.status}
                                     </span>
+                                    {r.status === "approved" && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            title="שחרר פרויקט"
+                                            onClick={() => handleFree(r)}
+                                        >
+                                            🔓
+                                        </Button>
+                                    )}
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => { setEditReg(r); setEditData(r); }}
                                     >
                                         ✏️
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => handleDelete(r)}
+                                    >
+                                        🗑️
                                     </Button>
                                 </div>
                             </div>
@@ -186,16 +244,36 @@ export default function AdminRegistrationsPage() {
                                     {new Date(r.created_at).toLocaleDateString("he-IL")}
                                 </TableCell>
                                 <TableCell>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            setEditReg(r);
-                                            setEditData(r);
-                                        }}
-                                    >
-                                        ✏️
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        {r.status === "approved" && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                title="שחרר פרויקט"
+                                                onClick={() => handleFree(r)}
+                                            >
+                                                🔓
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                setEditReg(r);
+                                                setEditData(r);
+                                            }}
+                                        >
+                                            ✏️
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:text-destructive"
+                                            onClick={() => handleDelete(r)}
+                                        >
+                                            🗑️
+                                        </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -244,6 +322,14 @@ export default function AdminRegistrationsPage() {
                         <div>
                             <Label>מייל סטודנט 2</Label>
                             <Input value={editData.student2_email || ""} onChange={(e) => setEditData({ ...editData, student2_email: e.target.value })} dir="ltr" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="edit_is_ce_student"
+                                checked={!!editData.is_ce_student}
+                                onCheckedChange={(checked) => setEditData({ ...editData, is_ce_student: !!checked })}
+                            />
+                            <Label htmlFor="edit_is_ce_student">סטודנט.ית בהנדסת מחשבים</Label>
                         </div>
                     </div>
                     <DialogFooter>

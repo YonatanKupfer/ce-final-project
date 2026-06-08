@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Input } from "@/components/ui/input";
@@ -9,36 +9,62 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import type { Project } from "@/lib/constants";
+import type { Project, AcademicYear } from "@/lib/constants";
 import { TRACK_LIST, type TrackId } from "@/lib/constants";
 
 export default function ProjectsPage() {
     const t = useTranslations("projectsTable");
     const tTracks = useTranslations("tracks");
+    const tCommon = useTranslations("common");
     const locale = useLocale();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [years, setYears] = useState<AcademicYear[]>([]);
+    const [selectedYearSlug, setSelectedYearSlug] = useState<string | null>(null);
+
+    // Fetch available academic years once on mount
+    useEffect(() => {
+        fetch("/api/academic-years")
+            .then((r) => r.json())
+            .then((data: AcademicYear[]) => {
+                setYears(data);
+                const active = data.find((y) => y.is_active);
+                if (active) setSelectedYearSlug(active.slug);
+            })
+            .catch(() => {});
+    }, []);
+
+    const selectedYear = years.find((y) => y.slug === selectedYearSlug) ?? null;
+    const isReadOnly = selectedYear ? !selectedYear.is_active : false;
 
     const loadProjects = useCallback(async () => {
+        if (!selectedYearSlug) return;
         const supabase = createSupabaseBrowserClient();
         if (!supabase) return;
+        const year = years.find((y) => y.slug === selectedYearSlug);
+        if (!year) return;
         const { data } = await supabase
             .from("projects")
             .select("*")
             .eq("status", "approved")
+            .eq("academic_year_id", year.id)
             .order("project_number", { ascending: true });
         setProjects((data as Project[]) || []);
         setLoading(false);
-    }, []);
+    }, [selectedYearSlug, years]);
 
     useEffect(() => {
-        loadProjects();
-    }, [loadProjects]);
+        if (selectedYearSlug && years.length > 0) {
+            setLoading(true);
+            loadProjects();
+        }
+    }, [loadProjects, selectedYearSlug, years]);
 
     const getProjectsForTrack = (trackId: string) => {
         return projects.filter((p) => {
@@ -76,7 +102,32 @@ export default function ProjectsPage() {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">{t("title")}</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("title")}</h1>
+                {years.length > 0 && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">{tCommon("academicYear")}:</span>
+                        <Select value={selectedYearSlug ?? ""} onValueChange={setSelectedYearSlug}>
+                            <SelectTrigger className="w-44 h-8 text-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {years.map((y) => (
+                                    <SelectItem key={y.id} value={y.slug}>
+                                        {y.label_he} — {y.label_en}{y.is_active ? " ✓" : ""}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </div>
+
+            {isReadOnly && (
+                <div className="mb-4 px-4 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-sm dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
+                    {tCommon("readOnlyBanner")}
+                </div>
+            )}
 
             <div className="mb-6">
                 <Input
@@ -219,9 +270,8 @@ function ProjectTable({
                     </TableHeader>
                     <TableBody>
                         {projects.map((p) => (
-                            <>
+                            <Fragment key={p.id}>
                                 <TableRow
-                                    key={p.id}
                                     className={`cursor-pointer transition-colors hover:bg-muted/50 ${p.is_taken ? "bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-200" : ""
                                         }`}
                                     onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
@@ -267,7 +317,7 @@ function ProjectTable({
                                         </TableCell>
                                     </TableRow>
                                 )}
-                            </>
+                            </Fragment>
                         ))}
                     </TableBody>
                 </Table>
