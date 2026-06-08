@@ -27,6 +27,19 @@ async function seed() {
   await supabase.from("projects").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   console.log("🗑️  Cleared existing projects & registrations");
 
+  // ── 2b. Fetch the active academic year ─────────────────────────────────────
+  const { data: activeYear } = await supabase
+    .from("academic_years")
+    .select("id, label_he")
+    .eq("is_active", true)
+    .single();
+  if (!activeYear) {
+    console.error("❌ No active academic year found. Create one first in /admin/settings.");
+    return;
+  }
+  console.log(`📅 Using active year: ${activeYear.label_he} (${activeYear.id})`);
+  const YEAR_ID = activeYear.id;
+
   // ── 3. Insert projects ──────────────────────────────────────────────────────
   const ACADEMIC_EMAIL = "yonatank50@gmail.com"; // all emails go here for testing
 
@@ -35,7 +48,9 @@ async function seed() {
     {
       status: "pending",
       title_he: "זיהוי חדירות רשת בזמן אמת",
+      title_en: "Real-Time Network Intrusion Detection",
       track: "crypto",
+      is_taken: false,
       supervisors_name: "ד\"ר אבי לוי",
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' מרים כהן",
@@ -52,6 +67,7 @@ async function seed() {
       title_he: "ניהול אנרגיה חכם בבתים",
       title_en: "Smart Home Energy Management System",
       track: "hardware",
+      is_taken: false,
       supervisors_name: "ד\"ר רונית שמש",
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' יוסף ברק",
@@ -69,6 +85,7 @@ async function seed() {
       title_he: "אנליזה של נתוני בריאות עם למידה עמוקה",
       title_en: "Deep Learning Analysis of Healthcare Data",
       track: "ai",
+      is_taken: false,
       supervisors_name: "ד\"ר נועה גפן",
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' מרים כהן",
@@ -142,6 +159,7 @@ async function seed() {
       title_he: "בלוקצ'יין לניהול שרשרת אספקה",
       title_en: "Blockchain Supply Chain Management",
       track: "networks",
+      is_taken: false,
       supervisors_name: "ד\"ר ארז כץ",
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' דוד שפירו",
@@ -156,11 +174,22 @@ async function seed() {
 
   const { data: insertedProjects, error: projErr } = await supabase
     .from("projects")
-    .insert(projects)
+    .insert(projects.map((p) => ({ ...p, academic_year_id: YEAR_ID })))
     .select("id, title_en, status, project_number");
 
   if (projErr) {
-    console.error("❌ Error inserting projects:", projErr.message);
+    if (projErr.message?.includes("check constraint")) {
+      console.error("❌ Track constraint error — run this SQL once in the Supabase SQL Editor, then re-run this script:\n");
+      console.error(`ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_track_check;
+ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_recommended_track_check;
+ALTER TABLE projects
+  ADD CONSTRAINT projects_track_check
+    CHECK (track IN ('crypto','hardware','networks','algorithms','software','ai','signal')),
+  ADD CONSTRAINT projects_recommended_track_check
+    CHECK (recommended_track IS NULL OR recommended_track IN ('crypto','hardware','networks','algorithms','software','ai','signal'));`);
+    } else {
+      console.error("❌ Error inserting projects:", projErr.message);
+    }
     return;
   }
   console.log(`\n✅ Inserted ${insertedProjects.length} projects:`);

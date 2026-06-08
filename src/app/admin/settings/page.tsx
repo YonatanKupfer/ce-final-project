@@ -23,6 +23,7 @@ export default function AdminSettingsPage() {
     const [creating, setCreating] = useState(false);
     const [activating, setActivating] = useState<string | null>(null);
     const [carryingOver, setCarryingOver] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState<string | null>(null);
 
     const handleCreate = async () => {
         if (!newSlug.trim() || !newLabelEn.trim() || !newLabelHe.trim()) {
@@ -73,8 +74,7 @@ export default function AdminSettingsPage() {
         }
     };
 
-    const handleCarryOver = async (year: AcademicYear) => {
-        const activeYear = years.find((y) => y.is_active);
+    const handleCarryOver = async (year: AcademicYear) => {        const activeYear = years.find((y) => y.is_active);
         if (!activeYear) {
             toast.error("אין שנה פעילה");
             return;
@@ -95,6 +95,24 @@ export default function AdminSettingsPage() {
             toast.error((err as Error).message || "שגיאה בהעברת פרויקטים");
         } finally {
             setCarryingOver(null);
+        }
+    };
+
+    const handleDelete = async (year: AcademicYear) => {
+        if (!confirm(`למחוק את השנה "${year.label_he} / ${year.label_en}"? פעולה זו בלתי הפיכה.`)) return;
+        setDeleting(year.id);
+        try {
+            const res = await fetch(`/api/admin/academic-years/${year.id}`, { method: "DELETE" });
+            if (!res.ok) {
+                const { error } = await res.json();
+                throw new Error(error);
+            }
+            toast.success(`השנה ${year.label_he} נמחקה`);
+            await refreshYears();
+        } catch (err: unknown) {
+            toast.error((err as Error).message || "שגיאה במחיקת השנה");
+        } finally {
+            setDeleting(null);
         }
     };
 
@@ -197,6 +215,15 @@ export default function AdminSettingsPage() {
                                                 >
                                                     {carryingOver === year.id ? "מעביר..." : "העבר פרויקטים"}
                                                 </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => handleDelete(year)}
+                                                    disabled={deleting === year.id}
+                                                    title="מחק שנה (רק אם אין פרויקטים)"
+                                                >
+                                                    {deleting === year.id ? "מוחק..." : "מחק"}
+                                                </Button>
                                             </>
                                         )}
                                     </div>
@@ -243,6 +270,14 @@ export default function AdminSettingsPage() {
                                         disabled={carryingOver === year.id || !years.find((y) => y.is_active)}
                                     >
                                         {carryingOver === year.id ? "מעביר..." : "העבר פרויקטים"}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => handleDelete(year)}
+                                        disabled={deleting === year.id}
+                                    >
+                                        {deleting === year.id ? "מוחק..." : "מחק"}
                                     </Button>
                                 </div>
                             )}
