@@ -18,11 +18,25 @@ export async function POST(request: NextRequest) {
         const supabase = getAdminClient();
         const data = parsed.data;
 
-        // Check project exists and is available
+        const { data: activeYear } = await supabase
+            .from("academic_years")
+            .select("id")
+            .eq("is_active", true)
+            .single();
+
+        if (!activeYear) {
+            return NextResponse.json(
+                { error: "לא מוגדרת שנה אקדמית פעילה" },
+                { status: 400 }
+            );
+        }
+
+        // Check project exists, is available, and belongs to the active year
         const { data: project } = await supabase
             .from("projects")
             .select("*")
             .eq("id", data.project_id)
+            .eq("academic_year_id", activeYear.id)
             .eq("status", "approved")
             .eq("is_taken", false)
             .single();

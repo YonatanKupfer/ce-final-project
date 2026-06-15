@@ -24,6 +24,37 @@ function collectRecipients(staffEmails: Array<{ email: string }> | null, extras:
     return Array.from(recipients);
 }
 
+export async function GET() {
+    const supabase = getAdminClient();
+
+    const { data: activeYear, error: yearError } = await supabase
+        .from("academic_years")
+        .select("id")
+        .eq("is_active", true)
+        .single();
+
+    if (yearError || !activeYear) {
+        return NextResponse.json(
+            { error: "No active academic year" },
+            { status: 500 }
+        );
+    }
+
+    const { data, error } = await supabase
+        .from("projects")
+        .select("id, project_number, title_he, title_en, track")
+        .eq("academic_year_id", activeYear.id)
+        .eq("status", "approved")
+        .eq("is_taken", false)
+        .order("project_number", { ascending: true });
+
+    if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();

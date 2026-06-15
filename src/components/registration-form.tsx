@@ -9,18 +9,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { registrationFormSchema, type RegistrationFormData } from "@/lib/validations";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type { Project } from "@/lib/constants";
+
+type RegistrationProject = Pick<
+    Project,
+    "id" | "project_number" | "title_he" | "title_en" | "track"
+>;
 
 export function RegistrationForm() {
     const t = useTranslations("register");
     const tc = useTranslations("common");
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [projects, setProjects] = useState<RegistrationProject[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -47,19 +50,21 @@ export function RegistrationForm() {
 
     useEffect(() => {
         async function loadProjects() {
-            const client = createSupabaseBrowserClient();
-            if (!client) return;
-            const { data } = await client
-                .from("projects")
-                .select("*")
-                .eq("status", "approved")
-                .eq("is_taken", false)
-                .order("project_number", { ascending: true });
-            setProjects((data as Project[]) || []);
-            setLoadingProjects(false);
+            try {
+                const res = await fetch("/api/projects");
+                if (!res.ok) {
+                    throw new Error("Failed to load projects");
+                }
+                const data = await res.json();
+                setProjects((data as RegistrationProject[]) || []);
+            } catch {
+                toast.error(tc("error"));
+            } finally {
+                setLoadingProjects(false);
+            }
         }
         loadProjects();
-    }, []);
+    }, [tc]);
 
     const onSubmit = async (data: RegistrationFormData) => {
         setIsSubmitting(true);

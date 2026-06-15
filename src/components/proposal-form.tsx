@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { projectFormSchema, type ProjectFormData } from "@/lib/validations";
@@ -26,9 +26,9 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
   const t = useTranslations("propose");
   const tc = useTranslations("common");
   const tTracks = useTranslations("tracks");
-  const locale = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const submissionSucceeded = useRef(false);
 
   const {
     register,
@@ -63,7 +63,9 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
   useEffect(() => {
     if (editToken) return;
     const timeout = setTimeout(() => {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
+      if (!submissionSucceeded.current) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
+      }
     }, 1000);
     return () => clearTimeout(timeout);
   }, [watchedValues, editToken]);
@@ -101,7 +103,9 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
         throw new Error(err.error || "Submission failed");
       }
 
+      submissionSucceeded.current = true;
       localStorage.removeItem(DRAFT_KEY);
+      reset();
       setIsSuccess(true);
       toast.success(editToken ? t("resubmitSuccess") : t("successTitle"));
     } catch (error: unknown) {
@@ -146,7 +150,13 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
               onValueChange={(val) => { if (val) setValue("track", val as TrackId, { shouldValidate: true }); }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("selectTrack")} />
+                <span data-slot="select-value" className="flex flex-1">
+                  {watchedValues.track ? (
+                    tTracks(watchedValues.track)
+                  ) : (
+                    <span className="text-muted-foreground">{t("selectTrack")}</span>
+                  )}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {TRACK_LIST.map((track) => (
@@ -169,7 +179,11 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
               }
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("selectTrack")} />
+                <span data-slot="select-value" className="flex flex-1">
+                  {watchedValues.recommended_track
+                    ? tTracks(watchedValues.recommended_track)
+                    : "—"}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">—</SelectItem>
