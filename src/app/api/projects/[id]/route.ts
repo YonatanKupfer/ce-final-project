@@ -3,6 +3,27 @@ import { getAdminClient } from "@/lib/supabase";
 import { projectFormSchema } from "@/lib/validations";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
 
+function collectRecipients(staffEmails: Array<{ email: string }> | null, extras: string[]) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const recipients = new Set<string>();
+
+    for (const staff of staffEmails ?? []) {
+        const normalized = (staff.email || "").trim().toLowerCase();
+        if (normalized && emailRegex.test(normalized)) {
+            recipients.add(normalized);
+        }
+    }
+
+    for (const extra of extras) {
+        const normalized = (extra || "").trim().toLowerCase();
+        if (normalized && emailRegex.test(normalized)) {
+            recipients.add(normalized);
+        }
+    }
+
+    return Array.from(recipients);
+}
+
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -68,14 +89,18 @@ export async function PUT(
             .from("staff_emails")
             .select("email");
 
-        if (staffEmails && staffEmails.length > 0) {
-            const emails = staffEmails.map((s) => s.email);
+        {
+            const emails = collectRecipients(staffEmails, [
+                data.supervisors_email,
+                data.academic_supervisor_email,
+            ]);
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-            await sendEmail({
-                to: emails,
-                subject: `הצעת פרויקט עודכנה ונשלחה מחדש: ${data.title_he}`,
-                html: wrapEmailHtml(`
+            if (emails.length > 0) {
+                await sendEmail({
+                    to: emails,
+                    subject: `הצעת פרויקט עודכנה ונשלחה מחדש: ${data.title_he}`,
+                    html: wrapEmailHtml(`
           <h2>הצעת פרויקט עודכנה ונשלחה מחדש</h2>
           <p><strong>שם הפרויקט:</strong> ${data.title_he} / ${data.title_en}</p>
           <p><strong>מנחה:</strong> ${data.supervisors_name}</p>
@@ -85,7 +110,8 @@ export async function PUT(
             </a>
           </p>
         `),
-            }).catch(console.error);
+                }).catch(console.error);
+            }
         }
 
         return NextResponse.json({ success: true, project });

@@ -3,6 +3,27 @@ import { getAdminClient } from "@/lib/supabase";
 import { projectFormSchema } from "@/lib/validations";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
 
+function collectRecipients(staffEmails: Array<{ email: string }> | null, extras: string[]) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const recipients = new Set<string>();
+
+    for (const staff of staffEmails ?? []) {
+        const normalized = (staff.email || "").trim().toLowerCase();
+        if (normalized && emailRegex.test(normalized)) {
+            recipients.add(normalized);
+        }
+    }
+
+    for (const extra of extras) {
+        const normalized = (extra || "").trim().toLowerCase();
+        if (normalized && emailRegex.test(normalized)) {
+            recipients.add(normalized);
+        }
+    }
+
+    return Array.from(recipients);
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -57,14 +78,18 @@ export async function POST(request: NextRequest) {
             .from("staff_emails")
             .select("email");
 
-        if (staffEmails && staffEmails.length > 0) {
-            const emails = staffEmails.map((s) => s.email);
+        {
+            const emails = collectRecipients(staffEmails, [
+                data.supervisors_email,
+                data.academic_supervisor_email,
+            ]);
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-            await sendEmail({
-                to: emails,
-                subject: `הצעת פרויקט חדשה: ${data.title_he}`,
-                html: wrapEmailHtml(`
+            if (emails.length > 0) {
+                await sendEmail({
+                    to: emails,
+                    subject: `הצעת פרויקט חדשה: ${data.title_he}`,
+                    html: wrapEmailHtml(`
           <h2>הוגשה הצעת פרויקט חדשה</h2>
           <table style="width:100%; border-collapse: collapse;">
             <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט (עברית):</td><td style="padding: 8px;">${data.title_he}</td></tr>
@@ -79,7 +104,8 @@ export async function POST(request: NextRequest) {
             </a>
           </p>
         `),
-            }).catch(console.error);
+                }).catch(console.error);
+            }
         }
 
         return NextResponse.json({ success: true, project });
