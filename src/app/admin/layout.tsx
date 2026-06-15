@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { User } from "@supabase/supabase-js";
+import {
+    createSupabaseBrowserClient,
+    isSupabaseBrowserConfigured,
+} from "@/lib/supabase-browser";
+import type { Session, User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
 import { AdminYearProvider, useAdminYear } from "@/app/admin/year-context";
 
@@ -19,6 +22,9 @@ const NAV_ITEMS = [
     { href: "/admin/registrations", label: "הרשמות", icon: "👥" },
     { href: "/admin/settings", label: "הגדרות", icon: "⚙️" },
 ];
+
+const DEV_ADMIN = process.env.NEXT_PUBLIC_DEV_ADMIN === "true";
+const SUPABASE_CONFIGURED = isSupabaseBrowserConfigured();
 
 function YearSwitcher() {
     const { years, selectedYear, setSelectedSlug } = useAdminYear();
@@ -47,72 +53,109 @@ function YearSwitcher() {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [isStaff, setIsStaff] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(
+        DEV_ADMIN ? ({ email: "dev@local" } as User) : null
+    );
+    const [isStaff, setIsStaff] = useState(DEV_ADMIN);
+    const [loading, setLoading] = useState(!DEV_ADMIN && SUPABASE_CONFIGURED);
     const [email, setEmail] = useState("");
     const [magicLinkSent, setMagicLinkSent] = useState(false);
     const [sending, setSending] = useState(false);
-    const [loginError, setLoginError] = useState<string | null>(null);
+    const [loginError, setLoginError] = useState<string | null>(
+        SUPABASE_CONFIGURED
+            ? null
+            : "חסרה הגדרת Supabase בסביבה המקומית."
+    );
     const pathname = usePathname();
     const supabase = createSupabaseBrowserClient();
 
     useEffect(() => {
         // Dev bypass: skip auth when NEXT_PUBLIC_DEV_ADMIN=true
-        if (process.env.NEXT_PUBLIC_DEV_ADMIN === "true") {
-            setUser({ email: "dev@local" } as User);
-            setIsStaff(true);
-            setLoading(false);
-            return;
+        if (DEV_ADMIN || !SUPABASE_CONFIGURED) return;
+
+        let cancelled = false;
+
+        async function checkStaff(user: User | null) {
+            if (!user?.email) return false;
+
+            const { data, error } = await supabase
+                .from("staff_emails")
+                .select("email")
+                .ilike("email", user.email.trim())
+                .maybeSingle();
+
+            if (error) {
+                console.error("[admin auth] staff lookup failed:", error);
+                return false;
+            }
+
+            return !!data;
         }
 
         async function checkAuth() {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
+            const { data: { user }, error } = await supabase.auth.getUser();
+            if (cancelled) return;
 
-            if (user?.email) {
-                const { data } = await supabase
-                    .from("staff_emails")
-                    .select("email")
-                    .eq("email", user.email)
-                    .single();
-                setIsStaff(!!data);
+            if (error) {
+                console.error("[admin auth] getUser failed:", error);
             }
+
+            setUser(user);
+            setIsStaff(await checkStaff(user));
+            if (cancelled) return;
             setLoading(false);
         }
         checkAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: unknown, session: unknown) => {
-            const s = session as { user?: User } | null;
-            setUser(s?.user ?? null);
-            if (s?.user?.email) {
-                supabase
-                    .from("staff_emails")
-                    .select("email")
-                    .eq("email", s.user.email)
-                    .single()
-                    .then(({ data }: { data: unknown }) => setIsStaff(!!data));
-            } else {
-                setIsStaff(false);
-            }
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session: Session | null) => {
+            const nextUser = session?.user ?? null;
+            setUser(nextUser);
+
+            setTimeout(async () => {
+                const staff = await checkStaff(nextUser);
+                if (!cancelled) setIsStaff(staff);
+            }, 0);
         });
 
-        return () => subscription.unsubscribe();
-    }, []);
+        return () => {
+            cancelled = true;
+            subscription.unsubscribe();
+        };
+    }, [supabase]);
 
     const handleLogin = async () => {
-        if (!email.trim()) return;
+        if (!SUPABASE_CONFIGURED || !email.trim()) return;
         setSending(true);
         setLoginError(null);
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const { data: staff, error: staffError } = await supabase
+            .from("staff_emails")
+            .select("email")
+            .ilike("email", normalizedEmail)
+            .maybeSingle();
+
+        if (staffError || !staff) {
+            if (staffError) {
+                console.error("[admin login] staff lookup failed:", staffError);
+            }
+            setSending(false);
+            setLoginError("כתובת האימייל אינה מורשית לגשת ללוח הניהול.");
+            return;
+        }
+
         const { error } = await supabase.auth.signInWithOtp({
-            email: email.trim(),
-            options: { emailRedirectTo: `${window.location.origin}/admin/pending` },
+            email: normalizedEmail,
+            options: {
+                emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
         });
         setSending(false);
         if (error) {
             console.error("[admin login] signInWithOtp error:", error);
             setLoginError(error.message);
         } else {
+            setEmail(normalizedEmail);
             setMagicLinkSent(true);
         }
     };
@@ -182,7 +225,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         onClick={handleLogin}
                                         size="lg"
                                         className="w-full"
-                                        disabled={sending || !email.trim()}
+                                        disabled={!SUPABASE_CONFIGURED || sending || !email.trim()}
                                     >
                                         {sending ? "שולח..." : "שליחת קישור התחברות"}
                                     </Button>
