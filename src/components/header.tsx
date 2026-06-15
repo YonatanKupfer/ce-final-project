@@ -12,6 +12,8 @@ export function Header() {
     const pathname = usePathname();
     const isRtl = locale === "he";
     const otherLocale = locale === "he" ? "en" : "he";
+    const regulationsUrl =
+        process.env.NEXT_PUBLIC_PROJECT_REGULATIONS_URL || "/project-regulations.pdf";
 
     const switchPath = pathname.replace(`/${locale}`, `/${otherLocale}`);
 
@@ -42,6 +44,21 @@ export function Header() {
                             {t("register")}
                         </Button>
                     </Link>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs sm:text-sm"
+                        nativeButton={false}
+                        render={
+                            <a
+                                href={regulationsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            />
+                        }
+                    >
+                        {t("regulations")}
+                    </Button>
                     <div className={`h-6 w-px bg-border ${isRtl ? "mr-1" : "ml-1"}`} />
                     <Link href="/admin">
                         <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
@@ -86,6 +103,20 @@ export function Header() {
                                         ✍️ {t("register")}
                                     </Button>
                                 </Link>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full justify-start"
+                                    nativeButton={false}
+                                    render={
+                                        <a
+                                            href={regulationsUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        />
+                                    }
+                                >
+                                    📄 {t("regulations")}
+                                </Button>
                                 <Link href="/admin">
                                     <Button variant="ghost" className="w-full justify-start">
                                         ⚙️ {t("admin")}

@@ -34,3 +34,12 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Project regulations document
+
+The project regulations button in the desktop and mobile navigation opens
+`public/project-regulations.pdf` in a new tab.
+
+To use a different document without replacing the file, set
+`NEXT_PUBLIC_PROJECT_REGULATIONS_URL` locally or under Vercel Project Settings
+> Environment Variables, and redeploy the project.
