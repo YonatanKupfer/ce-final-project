@@ -5,7 +5,7 @@ import {
     createSupabaseBrowserClient,
     isSupabaseBrowserConfigured,
 } from "@/lib/supabase-browser";
-import type { Session, User } from "@supabase/supabase-js";
+import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,21 @@ const NAV_ITEMS = [
 
 const DEV_ADMIN = process.env.NEXT_PUBLIC_DEV_ADMIN === "true";
 const SUPABASE_CONFIGURED = isSupabaseBrowserConfigured();
+
+async function isStaffEmail(supabase: SupabaseClient, email: string) {
+    const { data, error } = await supabase
+        .from("staff_emails")
+        .select("email")
+        .ilike("email", email.trim())
+        .maybeSingle();
+
+    if (error) {
+        console.error("[admin auth] staff lookup failed:", error);
+        return false;
+    }
+
+    return !!data;
+}
 
 function YearSwitcher() {
     const { years, selectedYear, setSelectedSlug } = useAdminYear();
@@ -59,8 +74,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [isStaff, setIsStaff] = useState(DEV_ADMIN);
     const [loading, setLoading] = useState(!DEV_ADMIN && SUPABASE_CONFIGURED);
     const [email, setEmail] = useState("");
+    const [otpCode, setOtpCode] = useState("");
     const [magicLinkSent, setMagicLinkSent] = useState(false);
     const [sending, setSending] = useState(false);
+    const [verifyingCode, setVerifyingCode] = useState(false);
     const [loginError, setLoginError] = useState<string | null>(
         SUPABASE_CONFIGURED
             ? null
@@ -75,23 +92,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         let cancelled = false;
 
-        async function checkStaff(user: User | null) {
-            if (!user?.email) return false;
-
-            const { data, error } = await supabase
-                .from("staff_emails")
-                .select("email")
-                .ilike("email", user.email.trim())
-                .maybeSingle();
-
-            if (error) {
-                console.error("[admin auth] staff lookup failed:", error);
-                return false;
-            }
-
-            return !!data;
-        }
-
         async function checkAuth() {
             const { data: { user }, error } = await supabase.auth.getUser();
             if (cancelled) return;
@@ -101,7 +101,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }
 
             setUser(user);
-            setIsStaff(await checkStaff(user));
+            setIsStaff(user?.email ? await isStaffEmail(supabase, user.email) : false);
             if (cancelled) return;
             setLoading(false);
         }
@@ -112,7 +112,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             setUser(nextUser);
 
             setTimeout(async () => {
-                const staff = await checkStaff(nextUser);
+                const staff = nextUser?.email
+                    ? await isStaffEmail(supabase, nextUser.email)
+                    : false;
                 if (!cancelled) setIsStaff(staff);
             }, 0);
         });
@@ -129,16 +131,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setLoginError(null);
         const normalizedEmail = email.trim().toLowerCase();
 
-        const { data: staff, error: staffError } = await supabase
-            .from("staff_emails")
-            .select("email")
-            .ilike("email", normalizedEmail)
-            .maybeSingle();
+        const staff = await isStaffEmail(supabase, normalizedEmail);
 
-        if (staffError || !staff) {
-            if (staffError) {
-                console.error("[admin login] staff lookup failed:", staffError);
-            }
+        if (!staff) {
             setSending(false);
             setLoginError("כתובת האימייל אינה מורשית לגשת ללוח הניהול.");
             return;
@@ -156,8 +151,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             setLoginError(error.message);
         } else {
             setEmail(normalizedEmail);
+            setOtpCode("");
             setMagicLinkSent(true);
         }
+    };
+
+    const handleVerifyCode = async () => {
+        if (!SUPABASE_CONFIGURED || !email.trim() || !otpCode.trim()) return;
+        setVerifyingCode(true);
+        setLoginError(null);
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const token = otpCode.replace(/\s/g, "");
+
+        const { data, error } = await supabase.auth.verifyOtp({
+            email: normalizedEmail,
+            token,
+            type: "email",
+        });
+
+        if (error || !data.user?.email) {
+            setVerifyingCode(false);
+            setLoginError(error?.message || "קוד ההתחברות אינו תקין או פג תוקף.");
+            return;
+        }
+
+        const staff = await isStaffEmail(supabase, data.user.email);
+        setVerifyingCode(false);
+
+        if (!staff) {
+            await supabase.auth.signOut();
+            setLoginError("כתובת האימייל אינה מורשית לגשת ללוח הניהול.");
+            return;
+        }
+
+        setUser(data.user);
+        setIsStaff(true);
     };
 
     const handleLogout = async () => {
@@ -195,9 +224,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <div className="text-4xl">📧</div>
                                 <p className="text-muted-foreground">
                                     קישור התחברות נשלח לכתובת <strong>{email}</strong>.
-                                    <br />בדקו את תיבת הדואר שלכם ולחצו על הקישור.
+                                    <br />אפשר ללחוץ על הקישור או להזין כאן את קוד ההתחברות מהמייל.
                                 </p>
-                                <Button variant="ghost" size="sm" onClick={() => { setMagicLinkSent(false); setLoginError(null); }}>
+                                <div className="space-y-3">
+                                    <Input
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        placeholder="קוד התחברות"
+                                        value={otpCode}
+                                        onChange={(e) => { setOtpCode(e.target.value); setLoginError(null); }}
+                                        onKeyDown={(e) => e.key === "Enter" && handleVerifyCode()}
+                                        dir="ltr"
+                                        className="text-center"
+                                    />
+                                    {loginError && (
+                                        <p className="text-sm text-destructive" dir="ltr" style={{ textAlign: "left" }}>
+                                            {loginError}
+                                        </p>
+                                    )}
+                                    <Button
+                                        onClick={handleVerifyCode}
+                                        size="lg"
+                                        className="w-full"
+                                        disabled={verifyingCode || !otpCode.trim()}
+                                    >
+                                        {verifyingCode ? "מאמת..." : "כניסה עם קוד"}
+                                    </Button>
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={() => { setMagicLinkSent(false); setOtpCode(""); setLoginError(null); }}>
                                     שליחה מחדש
                                 </Button>
                             </>
