@@ -1,14 +1,14 @@
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function HomePage({
+export default async function HomePage({
     params,
 }: {
     params: Promise<{ locale: string }>;
 }) {
-    const t = useTranslations("landing");
-    const tc = useTranslations("common");
+    const { locale } = await params;
+    const t = await getTranslations("landing");
 
     return (
         <div className="container mx-auto px-4 py-12">
@@ -18,7 +18,7 @@ export default function HomePage({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                <Link href="propose" className="group">
+                <Link href={`/${locale}/propose`} className="group">
                     <Card className="h-full transition-all hover:shadow-lg hover:border-primary/50 group-hover:-translate-y-1">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3">
@@ -34,7 +34,7 @@ export default function HomePage({
                     </Card>
                 </Link>
 
-                <Link href="register" className="group">
+                <Link href={`/${locale}/register`} className="group">
                     <Card className="h-full transition-all hover:shadow-lg hover:border-primary/50 group-hover:-translate-y-1">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3">
@@ -50,7 +50,7 @@ export default function HomePage({
                     </Card>
                 </Link>
 
-                <Link href="projects" className="group">
+                <Link href={`/${locale}/projects`} className="group">
                     <Card className="h-full transition-all hover:shadow-lg hover:border-primary/50 group-hover:-translate-y-1">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export default function HomePage({
                     </Card>
                 </Link>
 
-                <Link href="assigned" className="group">
+                <Link href={`/${locale}/assigned`} className="group">
                     <Card className="h-full transition-all hover:shadow-lg hover:border-primary/50 group-hover:-translate-y-1">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3">

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import type { Project } from "@/lib/constants";
-import { TRACKS, TRACK_LIST, type TrackId } from "@/lib/constants";
+import { TRACKS, TRACK_LIST, normalizeTrack, type TrackId } from "@/lib/constants";
 import { useAdminYear } from "@/app/admin/year-context";
 
 export default function AdminProjectsPage() {
@@ -45,7 +45,7 @@ export default function AdminProjectsPage() {
         const { data } = await query;
         setProjects((data as Project[]) || []);
         setLoading(false);
-    }, [selectedYear]);
+    }, [selectedYear, supabase]);
 
     useEffect(() => {
         loadProjects();
@@ -58,7 +58,7 @@ export default function AdminProjectsPage() {
             p.title_en.toLowerCase().includes(search.toLowerCase()) ||
             p.supervisors_name.includes(search) ||
             (p.project_number && p.project_number.toString().includes(search));
-        const matchesTrack = trackFilter === "all" || p.track === trackFilter;
+        const matchesTrack = trackFilter === "all" || normalizeTrack(p.track) === trackFilter;
         return matchesSearch && matchesTrack;
     });
 
@@ -142,7 +142,7 @@ export default function AdminProjectsPage() {
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="w-auto min-w-[var(--anchor-width)]">
-                        <SelectItem value="all">כל השרשראות</SelectItem>
+                        <SelectItem value="all">כל האשכולות</SelectItem>
                         {TRACK_LIST.map((t) => (
                             <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
                         ))}
@@ -182,7 +182,7 @@ export default function AdminProjectsPage() {
                             <div className="font-medium">{p.title_he}</div>
                             <div className="text-xs text-muted-foreground" dir="ltr">{p.title_en}</div>
                             <div className="flex flex-wrap gap-2">
-                                <Badge variant="outline">{TRACKS[p.track as TrackId]?.label}</Badge>
+                                <Badge variant="outline">{TRACKS[normalizeTrack(p.track)]?.label}</Badge>
                             </div>
                             <div className="text-sm text-muted-foreground">{p.supervisors_name}</div>
                             <div className="text-xs text-muted-foreground">
@@ -211,7 +211,7 @@ export default function AdminProjectsPage() {
                         <TableRow className="bg-muted/50">
                             <TableHead className="w-16">מס׳</TableHead>
                             <TableHead>שם הפרויקט</TableHead>
-                            <TableHead>שרשרת</TableHead>
+                            <TableHead>אשכול</TableHead>
                             <TableHead>מנחה</TableHead>
                             <TableHead>סטטוס</TableHead>
                             <TableHead>תאריך</TableHead>
@@ -232,7 +232,7 @@ export default function AdminProjectsPage() {
                                     <div className="text-xs text-muted-foreground" dir="ltr">{p.title_en}</div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">{TRACKS[p.track as TrackId]?.label}</Badge>
+                                    <Badge variant="outline">{TRACKS[normalizeTrack(p.track)]?.label}</Badge>
                                 </TableCell>
                                 <TableCell className="text-sm">{p.supervisors_name}</TableCell>
                                 <TableCell>
@@ -292,8 +292,8 @@ export default function AdminProjectsPage() {
                         <EditField label="שם הפרויקט (עברית)" value={editData.title_he || ""} onChange={(v) => setEditData({ ...editData, title_he: v })} />
                         <EditField label="Project Title" value={editData.title_en || ""} onChange={(v) => setEditData({ ...editData, title_en: v })} dir="ltr" />
                         <div>
-                            <Label>שרשרת</Label>
-                            <Select value={editData.track || ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
+                            <Label>אשכול</Label>
+                            <Select value={editData.track ? normalizeTrack(editData.track) : ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
                                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                                     {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
@@ -330,8 +330,8 @@ export default function AdminProjectsPage() {
                             <Textarea value={editData.scope || ""} onChange={(e) => setEditData({ ...editData, scope: e.target.value })} rows={3} />
                         </div>
                         <div>
-                            <Label>מומלץ גם לשרשרת</Label>
-                            <Select value={editData.recommended_track || "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
+                            <Label>מומלץ גם לאשכול</Label>
+                            <Select value={editData.recommended_track ? normalizeTrack(editData.recommended_track) : "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
                                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent className="w-auto min-w-[var(--anchor-width)]">
                                     <SelectItem value="none">—</SelectItem>

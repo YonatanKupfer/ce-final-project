@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { TRACKS, type TrackId, type AcademicYear } from "@/lib/constants";
+import { academicYearLabel, normalizeTrack, type AcademicYear } from "@/lib/constants";
 
 interface AssignedProject {
     id: string;
@@ -33,6 +33,8 @@ interface AssignedProject {
 export default function AssignedPage() {
     const t = useTranslations("assignedTable");
     const tCommon = useTranslations("common");
+    const tTracks = useTranslations("tracks");
+    const locale = useLocale();
     const [registrations, setRegistrations] = useState<AssignedProject[]>([]);
     const [loading, setLoading] = useState(true);
     const [years, setYears] = useState<AcademicYear[]>([]);
@@ -54,6 +56,7 @@ export default function AssignedPage() {
 
     const loadData = useCallback(async () => {
         if (!selectedYearSlug || !years.length) return;
+        setLoading(true);
         const year = years.find((y) => y.slug === selectedYearSlug);
         if (!year) return;
         const supabase = createSupabaseBrowserClient();
@@ -71,8 +74,10 @@ export default function AssignedPage() {
 
     useEffect(() => {
         if (selectedYearSlug && years.length > 0) {
-            setLoading(true);
-            loadData();
+            const timeout = setTimeout(() => {
+                void loadData();
+            }, 0);
+            return () => clearTimeout(timeout);
         }
     }, [loadData, selectedYearSlug, years]);
 
@@ -80,6 +85,9 @@ export default function AssignedPage() {
         if (!id || id.length < 4) return id || "";
         return id.slice(-4);
     };
+    const titleField = locale === "he" ? "title_he" : "title_en";
+    const secondaryTitleField = locale === "he" ? "title_en" : "title_he";
+    const secondaryTitleDir = locale === "he" ? "ltr" : "rtl";
 
     if (loading) {
         return (
@@ -99,12 +107,16 @@ export default function AssignedPage() {
                         <span className="text-sm text-muted-foreground whitespace-nowrap">{tCommon("academicYear")}:</span>
                         <Select value={selectedYearSlug ?? ""} onValueChange={setSelectedYearSlug}>
                             <SelectTrigger className="w-44 h-8 text-sm">
-                                <SelectValue />
+                                <span data-slot="select-value" className="flex flex-1 text-left">
+                                    {selectedYear
+                                        ? academicYearLabel(selectedYear, locale) + (selectedYear.is_active ? " ✓" : "")
+                                        : ""}
+                                </span>
                             </SelectTrigger>
                             <SelectContent>
                                 {years.map((y) => (
                                     <SelectItem key={y.id} value={y.slug}>
-                                        {y.label_he} — {y.label_en}{y.is_active ? " ✓" : ""}
+                                        {academicYearLabel(y, locale)}{y.is_active ? " ✓" : ""}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -135,11 +147,13 @@ export default function AssignedPage() {
                                     <div className="flex items-center justify-between">
                                         <span className="font-mono font-bold text-lg">{r.project?.project_number}</span>
                                         <Badge variant="outline" className="text-xs">
-                                            {TRACKS[r.project?.track as TrackId]?.label}
+                                            {tTracks(normalizeTrack(r.project?.track))}
                                         </Badge>
                                     </div>
-                                    <div className="font-medium">{r.project?.title_he}</div>
-                                    <div className="text-xs text-muted-foreground" dir="ltr">{r.project?.title_en}</div>
+                                    <div className="font-medium">{r.project?.[titleField]}</div>
+                                    <div className="text-xs text-muted-foreground" dir={secondaryTitleDir}>
+                                        {r.project?.[secondaryTitleField]}
+                                    </div>
                                     <div className="text-sm text-muted-foreground">
                                         <span className="font-medium text-foreground">{t("supervisor")}:</span> {r.project?.supervisors_name}
                                     </div>
@@ -172,12 +186,12 @@ export default function AssignedPage() {
                                             {r.project?.project_number}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="font-medium">{r.project?.title_he}</div>
-                                            <div className="text-xs text-muted-foreground" dir="ltr">
-                                                {r.project?.title_en}
+                                            <div className="font-medium">{r.project?.[titleField]}</div>
+                                            <div className="text-xs text-muted-foreground" dir={secondaryTitleDir}>
+                                                {r.project?.[secondaryTitleField]}
                                             </div>
                                             <Badge variant="outline" className="mt-1 text-xs">
-                                                {TRACKS[r.project?.track as TrackId]?.label}
+                                                {tTracks(normalizeTrack(r.project?.track))}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-sm">

@@ -1,16 +1,30 @@
 export const TRACKS = {
-    crypto: { id: "crypto", label: "Cryptography and Cybersecurity", numberStart: 101 },
-    hardware: { id: "hardware", label: "Hardware and Chip Design", numberStart: 201 },
-    networks: { id: "networks", label: "Networks, Information and Quantum Computing", numberStart: 301 },
-    algorithms: { id: "algorithms", label: "Algorithms and Optimization", numberStart: 401 },
-    software: { id: "software", label: "Software Development", numberStart: 501 },
-    ai: { id: "ai", label: "AI and Data Analysis", numberStart: 601 },
-    signal: { id: "signal", label: "Signal Processing, Images and Graphics", numberStart: 701 },
+    cyber: { id: "cyber", label: "Cyber Security", numberStart: 101 },
+    networks: { id: "networks", label: "Networks and Computation", numberStart: 201 },
+    data: { id: "data", label: "Data Analysis and Processing", numberStart: 301 },
+    hardware: { id: "hardware", label: "Hardware Design", numberStart: 401 },
 } as const;
+
+export const TRACK_IDS = ["cyber", "networks", "data", "hardware"] as const;
 
 export type TrackId = keyof typeof TRACKS;
 
 export const TRACK_LIST = Object.values(TRACKS);
+
+const LEGACY_TRACK_MAP: Record<string, TrackId> = {
+    crypto: "cyber",
+    networks: "networks",
+    algorithms: "networks",
+    software: "networks",
+    ai: "data",
+    signal: "data",
+    hardware: "hardware",
+};
+
+export function normalizeTrack(track: string | null | undefined): TrackId {
+    if (!track) return "cyber";
+    return LEGACY_TRACK_MAP[track] ?? "cyber";
+}
 
 export type ProjectStatus = "pending" | "review" | "approved" | "rejected";
 export type RegistrationStatus = "pending" | "approved" | "rejected";
@@ -22,6 +36,10 @@ export interface AcademicYear {
     label_he: string;
     is_active: boolean;
     created_at: string;
+}
+
+export function academicYearLabel(year: AcademicYear, locale: string): string {
+    return locale === "he" ? year.label_he : year.label_en;
 }
 
 export interface Project {

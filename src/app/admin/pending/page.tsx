@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import type { Project } from "@/lib/constants";
-import { TRACKS, TRACK_LIST, type TrackId } from "@/lib/constants";
+import { TRACKS, TRACK_LIST, normalizeTrack, type TrackId } from "@/lib/constants";
 import { useAdminYear } from "@/app/admin/year-context";
 
 export default function PendingProjectsPage() {
@@ -44,7 +44,7 @@ export default function PendingProjectsPage() {
         const { data } = await query;
         setProjects((data as Project[]) || []);
         setLoading(false);
-    }, [selectedYear]);
+    }, [selectedYear, supabase]);
 
     useEffect(() => {
         loadProjects();
@@ -172,7 +172,7 @@ export default function PendingProjectsPage() {
                                     {project.title_en}
                                 </p>
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                    <Badge>{TRACKS[project.track as TrackId]?.label}</Badge>
+                                    <Badge>{TRACKS[normalizeTrack(project.track)]?.label}</Badge>
                                     <Badge variant={project.status === "review" ? "destructive" : "secondary"}>
                                         {project.status === "review" ? "ממתין לתיקון" : "ממתין לבדיקה"}
                                     </Badge>
@@ -289,8 +289,8 @@ export default function PendingProjectsPage() {
                             <Input value={editData.title_en || ""} onChange={(e) => setEditData({ ...editData, title_en: e.target.value })} dir="ltr" />
                         </div>
                         <div>
-                            <Label>שרשרת</Label>
-                            <Select value={editData.track || ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
+                            <Label>אשכול</Label>
+                            <Select value={editData.track ? normalizeTrack(editData.track) : ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
@@ -298,8 +298,8 @@ export default function PendingProjectsPage() {
                             </Select>
                         </div>
                         <div>
-                            <Label>מומלץ גם לשרשרת</Label>
-                            <Select value={editData.recommended_track || "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
+                            <Label>מומלץ גם לאשכול</Label>
+                            <Select value={editData.recommended_track ? normalizeTrack(editData.recommended_track) : "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">—</SelectItem>

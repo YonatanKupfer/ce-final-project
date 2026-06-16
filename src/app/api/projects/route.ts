@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { projectFormSchema } from "@/lib/validations";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
+import { TRACKS, normalizeTrack } from "@/lib/constants";
 
 function collectRecipients(staffEmails: Array<{ email: string }> | null, extras: string[]) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,6 +23,13 @@ function collectRecipients(staffEmails: Array<{ email: string }> | null, extras:
     }
 
     return Array.from(recipients);
+}
+
+function proposalEditUrl(editToken: string) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const url = new URL("/he/propose", appUrl);
+    url.searchParams.set("token", editToken);
+    return url.toString();
 }
 
 export async function GET() {
@@ -69,6 +77,7 @@ export async function POST(request: NextRequest) {
 
         const supabase = getAdminClient();
         const data = parsed.data;
+        const trackLabel = TRACKS[normalizeTrack(data.track)].label;
 
         // Resolve the active academic year so new proposals are tagged correctly
         const { data: activeYear } = await supabase
@@ -110,10 +119,7 @@ export async function POST(request: NextRequest) {
             .select("email");
 
         {
-            const emails = collectRecipients(staffEmails, [
-                data.supervisors_email,
-                data.academic_supervisor_email,
-            ]);
+            const emails = collectRecipients(staffEmails, []);
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
             if (emails.length > 0) {
@@ -125,13 +131,45 @@ export async function POST(request: NextRequest) {
           <table style="width:100%; border-collapse: collapse;">
             <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט (עברית):</td><td style="padding: 8px;">${data.title_he}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${data.title_en}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">שרשרת:</td><td style="padding: 8px;">${data.track}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">אשכול:</td><td style="padding: 8px;">${trackLabel}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">מנחה:</td><td style="padding: 8px;">${data.supervisors_name}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">אחראי.ת אקדמי.ת:</td><td style="padding: 8px;">${data.academic_supervisor_name}</td></tr>
           </table>
           <p style="margin-top: 20px;">
             <a href="${appUrl}/admin/pending" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
               צפייה בלוח הניהול
+            </a>
+          </p>
+        `),
+                }).catch(console.error);
+            }
+        }
+
+        {
+            const confirmationRecipients = collectRecipients(null, [
+                data.supervisors_email,
+                data.academic_supervisor_email,
+            ]);
+            const editLink = proposalEditUrl(project.edit_token);
+
+            if (confirmationRecipients.length > 0) {
+                await sendEmail({
+                    to: confirmationRecipients,
+                    subject: `אישור הגשת הצעת פרויקט: ${data.title_he}`,
+                    html: wrapEmailHtml(`
+          <h2>הצעת הפרויקט הוגשה בהצלחה</h2>
+          <p>ההצעה התקבלה במערכת ותיבדק על ידי צוות ניהול הקורס.</p>
+          <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+            <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט (עברית):</td><td style="padding: 8px;">${data.title_he}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${data.title_en}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">אשכול:</td><td style="padding: 8px;">${trackLabel}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">מנחה:</td><td style="padding: 8px;">${data.supervisors_name}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">אחראי.ת אקדמי.ת:</td><td style="padding: 8px;">${data.academic_supervisor_name}</td></tr>
+          </table>
+          <p>ניתן לערוך את ההצעה ולהגיש אותה מחדש כל עוד הפרויקט לא אושר סופית.</p>
+          <p style="margin-top: 20px;">
+            <a href="${editLink}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+              עריכת ההצעה
             </a>
           </p>
         `),

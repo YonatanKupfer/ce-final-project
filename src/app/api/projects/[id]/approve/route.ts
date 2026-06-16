@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
-import { TRACKS, type TrackId } from "@/lib/constants";
-
-const TRACK_NUMBER_START: Record<string, number> = {
-    crypto: 101,
-    hardware: 201,
-    networks: 301,
-    algorithms: 401,
-    software: 501,
-    ai: 601,
-    signal: 701,
-};
+import { TRACKS, normalizeTrack } from "@/lib/constants";
 
 function nextFreeNumber(track: string, used: Set<number>): number {
-    const start = TRACK_NUMBER_START[track] ?? 101;
+    const start = TRACKS[normalizeTrack(track)].numberStart;
     let n = start;
     while (used.has(n)) n++;
     return n;
@@ -44,7 +34,7 @@ export async function POST(
         }
 
         // Determine next free project number for this track within the same academic year
-        const track = project.track as TrackId;
+        const track = normalizeTrack(project.track);
         const trackInfo = TRACKS[track];
         const { data: existingInYear } = await supabase
             .from("projects")
@@ -63,6 +53,7 @@ export async function POST(
             .from("projects")
             .update({
                 status: "approved",
+                track,
                 project_number: nextNumber,
                 review_notes: null,
             })
@@ -84,7 +75,7 @@ export async function POST(
           <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px; font-size: 20px; font-weight: bold; color: #2563eb;">${nextNumber}</td></tr>
           <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט (עברית):</td><td style="padding: 8px;">${project.title_he}</td></tr>
           <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${project.title_en}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">שרשרת:</td><td style="padding: 8px;">${trackInfo.label}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">אשכול:</td><td style="padding: 8px;">${trackInfo.label}</td></tr>
         </table>
         <p>הפרויקט פורסם ברשימת הפרויקטים המאושרים.</p>
       `),

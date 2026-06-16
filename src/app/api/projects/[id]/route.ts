@@ -47,13 +47,19 @@ export async function PUT(
         // Verify edit token
         const { data: existing } = await supabase
             .from("projects")
-            .select("id, edit_token")
+            .select("id, edit_token, status")
             .eq("id", id)
             .eq("edit_token", edit_token)
             .single();
 
         if (!existing) {
             return NextResponse.json({ error: "Invalid token" }, { status: 403 });
+        }
+        if (existing.status === "approved") {
+            return NextResponse.json(
+                { error: "Cannot edit a project after final approval" },
+                { status: 403 }
+            );
         }
 
         const { data: project, error } = await supabase

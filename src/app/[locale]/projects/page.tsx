@@ -9,12 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import type { Project, AcademicYear } from "@/lib/constants";
-import { TRACK_LIST, type TrackId } from "@/lib/constants";
+import { TRACK_LIST, academicYearLabel, normalizeTrack } from "@/lib/constants";
 
 export default function ProjectsPage() {
     const t = useTranslations("projectsTable");
@@ -45,6 +45,7 @@ export default function ProjectsPage() {
 
     const loadProjects = useCallback(async () => {
         if (!selectedYearSlug) return;
+        setLoading(true);
         const supabase = createSupabaseBrowserClient();
         if (!supabase) return;
         const year = years.find((y) => y.slug === selectedYearSlug);
@@ -61,14 +62,18 @@ export default function ProjectsPage() {
 
     useEffect(() => {
         if (selectedYearSlug && years.length > 0) {
-            setLoading(true);
-            loadProjects();
+            const timeout = setTimeout(() => {
+                void loadProjects();
+            }, 0);
+            return () => clearTimeout(timeout);
         }
     }, [loadProjects, selectedYearSlug, years]);
 
     const getProjectsForTrack = (trackId: string) => {
         return projects.filter((p) => {
-            const matchesTrack = p.track === trackId || p.recommended_track === trackId;
+            const matchesTrack =
+                normalizeTrack(p.track) === trackId ||
+                (p.recommended_track && normalizeTrack(p.recommended_track) === trackId);
             const matchesSearch =
                 !search ||
                 p.title_he.includes(search) ||
@@ -111,14 +116,14 @@ export default function ProjectsPage() {
                             <SelectTrigger className="w-44 h-8 text-sm">
                                 <span data-slot="select-value" className="flex flex-1 text-left">
                                     {selectedYear
-                                        ? (locale === "he" ? selectedYear.label_he : selectedYear.label_en) + (selectedYear.is_active ? " ✓" : "")
+                                        ? academicYearLabel(selectedYear, locale) + (selectedYear.is_active ? " ✓" : "")
                                         : ""}
                                 </span>
                             </SelectTrigger>
                             <SelectContent>
                                 {years.map((y) => (
                                     <SelectItem key={y.id} value={y.slug}>
-                                        {y.label_he} — {y.label_en}{y.is_active ? " ✓" : ""}
+                                        {academicYearLabel(y, locale)}{y.is_active ? " ✓" : ""}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -165,7 +170,6 @@ export default function ProjectsPage() {
                         setExpandedId={setExpandedId}
                         titleField={titleField}
                         t={t}
-                        tTracks={tTracks}
                     />
                 </TabsContent>
 
@@ -177,7 +181,6 @@ export default function ProjectsPage() {
                             setExpandedId={setExpandedId}
                             titleField={titleField}
                             t={t}
-                            tTracks={tTracks}
                         />
                     </TabsContent>
                 ))}
@@ -192,14 +195,12 @@ function ProjectTable({
     setExpandedId,
     titleField,
     t,
-    tTracks,
 }: {
     projects: Project[];
     expandedId: string | null;
     setExpandedId: (id: string | null) => void;
     titleField: "title_he" | "title_en";
     t: (key: string) => string;
-    tTracks: (key: string) => string;
 }) {
     if (projects.length === 0) {
         return (

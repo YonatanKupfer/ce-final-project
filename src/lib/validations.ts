@@ -1,10 +1,11 @@
 import { z } from "zod/v4";
+import { TRACK_IDS } from "@/lib/constants";
 
 export const projectFormSchema = z.object({
     title_he: z.string().min(1, "שדה חובה"),
     title_en: z.string().min(1, "Required field"),
-    track: z.enum(["crypto", "hardware", "networks", "algorithms", "software", "ai", "signal"]),
-    recommended_track: z.string(),
+    track: z.enum(TRACK_IDS),
+    recommended_track: z.enum([...TRACK_IDS, ""]),
     supervisors_name: z.string().min(1, "שדה חובה"),
     supervisors_email: z.string().email("כתובת אימייל לא תקינה"),
     academic_supervisor_name: z.string().min(1, "שדה חובה"),

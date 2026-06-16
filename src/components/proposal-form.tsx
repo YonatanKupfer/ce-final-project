@@ -175,7 +175,7 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
             <Select
               value={watchedValues.recommended_track || "none"}
               onValueChange={(val) =>
-                setValue("recommended_track", !val || val === "none" ? "" : val)
+                setValue("recommended_track", (!val || val === "none" ? "" : val) as "" | TrackId)
               }
             >
               <SelectTrigger className="w-full">

@@ -44,6 +44,11 @@ export function Header() {
                             {t("register")}
                         </Button>
                     </Link>
+                    <Link href={`/${locale}/assigned`}>
+                        <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                            {t("assigned")}
+                        </Button>
+                    </Link>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -101,6 +106,11 @@ export function Header() {
                                 <Link href={`/${locale}/register`}>
                                     <Button variant="ghost" className="w-full justify-start">
                                         ✍️ {t("register")}
+                                    </Button>
+                                </Link>
+                                <Link href={`/${locale}/assigned`}>
+                                    <Button variant="ghost" className="w-full justify-start">
+                                        👥 {t("assigned")}
                                     </Button>
                                 </Link>
                                 <Button

@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
-
-const TRACK_NUMBER_START: Record<string, number> = {
-    crypto: 101,
-    hardware: 201,
-    networks: 301,
-    algorithms: 401,
-    software: 501,
-    ai: 601,
-    signal: 701,
-};
+import { TRACKS, normalizeTrack } from "@/lib/constants";
 
 function nextFreeNumber(track: string, used: Set<number>): number {
-    const start = TRACK_NUMBER_START[track] ?? 101;
+    const start = TRACKS[normalizeTrack(track)].numberStart;
     let n = start;
     while (used.has(n)) n++;
     used.add(n);
@@ -71,26 +62,33 @@ export async function POST(
     );
 
     // Build copies with auto-assigned project numbers per track
-    const copies = projects.map((p) => ({
-        academic_year_id: activeYear.id,
-        title_he: p.title_he,
-        title_en: p.title_en,
-        track: p.track,
-        recommended_track: p.recommended_track,
-        supervisors_name: p.supervisors_name,
-        supervisors_email: p.supervisors_email,
-        academic_supervisor_name: p.academic_supervisor_name,
-        academic_supervisor_email: p.academic_supervisor_email,
-        abstract: p.abstract,
-        objective: p.objective,
-        scope: p.scope,
-        prereq_course_1: p.prereq_course_1,
-        prereq_course_2: p.prereq_course_2,
-        references_text: p.references_text,
-        status: "approved",
-        is_taken: false,
-        project_number: nextFreeNumber(p.track, usedNumbers),
-    }));
+    const copies = projects.map((p) => {
+        const track = normalizeTrack(p.track);
+        const recommendedTrack = p.recommended_track
+            ? normalizeTrack(p.recommended_track)
+            : null;
+
+        return {
+            academic_year_id: activeYear.id,
+            title_he: p.title_he,
+            title_en: p.title_en,
+            track,
+            recommended_track: recommendedTrack,
+            supervisors_name: p.supervisors_name,
+            supervisors_email: p.supervisors_email,
+            academic_supervisor_name: p.academic_supervisor_name,
+            academic_supervisor_email: p.academic_supervisor_email,
+            abstract: p.abstract,
+            objective: p.objective,
+            scope: p.scope,
+            prereq_course_1: p.prereq_course_1,
+            prereq_course_2: p.prereq_course_2,
+            references_text: p.references_text,
+            status: "approved",
+            is_taken: false,
+            project_number: nextFreeNumber(track, usedNumbers),
+        };
+    });
 
     const { data: inserted, error: insertError } = await supabase
         .from("projects")

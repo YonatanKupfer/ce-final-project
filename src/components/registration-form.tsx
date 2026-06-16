@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ type RegistrationProject = Pick<
 export function RegistrationForm() {
     const t = useTranslations("register");
     const tc = useTranslations("common");
+    const locale = useLocale();
     const [projects, setProjects] = useState<RegistrationProject[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +90,7 @@ export function RegistrationForm() {
     };
 
     const isCeStudent = watch("is_ce_student");
+    const titleField = locale === "he" ? "title_he" : "title_en";
 
     if (isSuccess) {
         return (
@@ -124,7 +126,7 @@ export function RegistrationForm() {
                                         {(() => {
                                             const sel = projects.find((p) => p.id === watch("project_id"));
                                             if (!sel) return <span className="text-muted-foreground">{t("selectProject")}</span>;
-                                            return <><span className="font-mono me-2">#{sel.project_number}</span>{sel.title_he}</>;
+                                            return <><span className="font-mono me-2">#{sel.project_number}</span>{sel[titleField]}</>;
                                         })()}
                                     </span>
                                 </SelectTrigger>
@@ -132,7 +134,7 @@ export function RegistrationForm() {
                                     {projects.map((p) => (
                                         <SelectItem key={p.id} value={p.id}>
                                             <span className="font-mono me-2">#{p.project_number}</span>
-                                            {p.title_he}
+                                            {p[titleField]}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

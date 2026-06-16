@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
-
-const TRACK_NUMBER_START: Record<string, number> = {
-    crypto: 101,
-    hardware: 201,
-    networks: 301,
-    algorithms: 401,
-    software: 501,
-    ai: 601,
-    signal: 701,
-};
+import { TRACKS, normalizeTrack } from "@/lib/constants";
 
 function nextFreeNumber(track: string, used: Set<number>): number {
-    const start = TRACK_NUMBER_START[track] ?? 101;
+    const start = TRACKS[normalizeTrack(track)].numberStart;
     let n = start;
     while (used.has(n)) n++;
     used.add(n);
@@ -65,6 +56,11 @@ export async function POST(
         (existingInActive ?? []).map((p) => p.project_number as number)
     );
 
+    const track = normalizeTrack(project.track);
+    const recommendedTrack = project.recommended_track
+        ? normalizeTrack(project.recommended_track)
+        : null;
+
     // Insert the copy into the active year
     const { data: copy, error: insertError } = await supabase
         .from("projects")
@@ -72,8 +68,8 @@ export async function POST(
             academic_year_id: activeYear.id,
             title_he: project.title_he,
             title_en: project.title_en,
-            track: project.track,
-            recommended_track: project.recommended_track,
+            track,
+            recommended_track: recommendedTrack,
             supervisors_name: project.supervisors_name,
             supervisors_email: project.supervisors_email,
             academic_supervisor_name: project.academic_supervisor_name,
@@ -86,7 +82,7 @@ export async function POST(
             references_text: project.references_text,
             status: "approved",
             is_taken: false,
-            project_number: nextFreeNumber(project.track, usedNumbers),
+            project_number: nextFreeNumber(track, usedNumbers),
         })
         .select()
         .single();

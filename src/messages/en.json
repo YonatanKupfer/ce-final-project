@@ -30,13 +30,10 @@
         "readOnlyBanner": "You are viewing an archived year. Projects and registrations are read-only."
     },
     "tracks": {
-        "crypto": "Cryptography and Cybersecurity",
-        "hardware": "Hardware and Chip Design",
-        "networks": "Networks, Information and Quantum Computing",
-        "algorithms": "Algorithms and Optimization",
-        "software": "Software Development",
-        "ai": "AI and Data Analysis",
-        "signal": "Signal Processing, Images and Graphics"
+        "cyber": "Cyber Security",
+        "networks": "Networks and Computation",
+        "data": "Data Analysis and Processing",
+        "hardware": "Hardware Design"
     },
     "landing": {
         "title": "Final Projects Management System",
@@ -46,7 +43,7 @@
         "registerCard": "Register for Project",
         "registerDesc": "For students — register for an approved final project",
         "projectsCard": "Browse Projects",
-        "projectsDesc": "View all approved projects by track",
+        "projectsDesc": "View all approved projects by cluster",
         "assignedCard": "Assigned Projects",
         "assignedDesc": "View projects assigned to students"
     },
@@ -59,9 +56,9 @@
         "section4": "Prerequisites & References",
         "titleHe": "Project Title (Hebrew)",
         "titleEn": "Project Title (English)",
-        "track": "Track",
-        "recommendedTrack": "Also recommended for students in track",
-        "recommendedTrackSubtitle": "The project will also be listed under the selected track but managed under the track specified above",
+        "track": "Cluster",
+        "recommendedTrack": "Also recommended for students in cluster",
+        "recommendedTrackSubtitle": "The project will also be listed under the selected cluster but managed under the cluster specified above",
         "supervisorName": "Supervisor(s) Name",
         "supervisorEmail": "Supervisor(s) Email",
         "academicSupervisor": "Academic Supervisor",
@@ -77,9 +74,11 @@
         "prereqSubtitle": "No need to mention mandatory courses. Please specify a course (number and name) that is a prerequisite for the proposed project. This course can be taken concurrently with the start of the project. If there is no prerequisite, leave this field empty.",
         "references": "References",
         "referencesSubtitle": "Please write as bullet points (bibliographic list). It is recommended to include direct links where possible.",
-        "selectTrack": "Select a track",
+        "selectTrack": "Select a cluster",
         "successTitle": "Proposal Submitted Successfully!",
-        "successMessage": "Your proposal has been received and will be reviewed by the course management staff. You will receive an update by email.",
+        "successMessage": "Your proposal has been received and will be reviewed by the course management staff. A submission confirmation email has just been sent to the supervisor and academic supervisor, including a link to edit the proposal until it receives final approval.",
+        "editUnavailableTitle": "Proposal editing is unavailable",
+        "editUnavailableMessage": "A proposal that already received final approval cannot be edited, or the edit link is invalid.",
         "resubmitSuccess": "Proposal updated and resubmitted successfully!"
     },
     "register": {
@@ -106,7 +105,7 @@
         "available": "Available",
         "taken": "Taken",
         "details": "Details",
-        "allTracks": "All Tracks",
+        "allTracks": "All Clusters",
         "expandDetails": "Show Details"
     },
     "assignedTable": {

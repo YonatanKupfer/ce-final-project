@@ -49,7 +49,7 @@ async function seed() {
       status: "pending",
       title_he: "זיהוי חדירות רשת בזמן אמת",
       title_en: "Real-Time Network Intrusion Detection",
-      track: "crypto",
+      track: "cyber",
       is_taken: false,
       supervisors_name: "ד\"ר אבי לוי",
       supervisors_email: ACADEMIC_EMAIL,
@@ -84,7 +84,7 @@ async function seed() {
       status: "review",
       title_he: "אנליזה של נתוני בריאות עם למידה עמוקה",
       title_en: "Deep Learning Analysis of Healthcare Data",
-      track: "ai",
+      track: "data",
       is_taken: false,
       supervisors_name: "ד\"ר נועה גפן",
       supervisors_email: ACADEMIC_EMAIL,
@@ -104,7 +104,7 @@ async function seed() {
       project_number: 101,
       title_he: "מערכת הצפנה קוונטית",
       title_en: "Quantum-Resistant Encryption System",
-      track: "crypto",
+      track: "cyber",
       supervisors_name: "ד\"ר אורי פרידמן",
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' דוד שפירו",
@@ -138,8 +138,8 @@ async function seed() {
       project_number: 301,
       title_he: "עיבוד שפה טבעית לעברית",
       title_en: "Hebrew NLP Sentiment Analysis",
-      track: "ai",
-      recommended_track: "crypto",
+      track: "data",
+      recommended_track: "cyber",
       supervisors_name: "ד\"ר שירה אלון",
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' יוסף ברק",
@@ -156,7 +156,7 @@ async function seed() {
     // ── Rejected ──
     {
       status: "rejected",
-      title_he: "בלוקצ'יין לניהול שרשרת אספקה",
+      title_he: "בלוקצ'יין לניהול אספקה",
       title_en: "Blockchain Supply Chain Management",
       track: "networks",
       is_taken: false,
@@ -164,7 +164,7 @@ async function seed() {
       supervisors_email: ACADEMIC_EMAIL,
       academic_supervisor_name: "פרופ' דוד שפירו",
       academic_supervisor_email: ACADEMIC_EMAIL,
-      abstract: "מערכת ניהול שרשרת אספקה מבוססת blockchain עם חוזים חכמים.",
+      abstract: "מערכת ניהול אספקה מבוססת blockchain עם חוזים חכמים.",
       objective: "פיתוח מערכת blockchain מלאה. תוצרים: smart contracts, ממשק ניהול.",
       scope: "1. תכנון ארכיטקטורה\n2. smart contracts\n3. frontend\n4. בדיקות",
       references_text: "• Nakamoto (2008)\n• https://ethereum.org",
@@ -184,9 +184,9 @@ async function seed() {
 ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_recommended_track_check;
 ALTER TABLE projects
   ADD CONSTRAINT projects_track_check
-    CHECK (track IN ('crypto','hardware','networks','algorithms','software','ai','signal')),
+    CHECK (track IN ('cyber','networks','data','hardware')),
   ADD CONSTRAINT projects_recommended_track_check
-    CHECK (recommended_track IS NULL OR recommended_track IN ('crypto','hardware','networks','algorithms','software','ai','signal'));`);
+    CHECK (recommended_track IS NULL OR recommended_track IN ('cyber','networks','data','hardware'));`);
     } else {
       console.error("❌ Error inserting projects:", projErr.message);
     }

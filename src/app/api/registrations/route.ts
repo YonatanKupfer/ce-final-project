@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { registrationFormSchema } from "@/lib/validations";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
+import { TRACKS, normalizeTrack } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
     try {
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
         const decisionUrl = `${appUrl}/approve-registration/${registration.approval_token}`;
         const approveUrl = `${decisionUrl}?action=approve`;
         const rejectUrl = `${decisionUrl}?action=reject`;
+        const trackLabel = TRACKS[normalizeTrack(project.track)].label;
 
         let studentInfo = `
       <tr><td style="padding: 8px; font-weight: bold;">שם סטודנט 1:</td><td style="padding: 8px;">${data.student1_name}</td></tr>
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
           <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px; font-size: 18px; font-weight: bold; color: #2563eb;">#${project.project_number}</td></tr>
           <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט:</td><td style="padding: 8px;">${project.title_he}</td></tr>
           <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;" dir="ltr">${project.title_en}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">מסלול:</td><td style="padding: 8px;">${project.track}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">אשכול:</td><td style="padding: 8px;">${trackLabel}</td></tr>
           <tr><td style="padding: 8px; font-weight: bold;">מנחה:</td><td style="padding: 8px;">${project.supervisors_name}</td></tr>
         </table>
         <h3 style="margin-bottom: 4px;">פרטי הסטודנטים:</h3>

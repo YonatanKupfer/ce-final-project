@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
+import { normalizeTrack } from "@/lib/constants";
 
 export async function PUT(
     request: NextRequest,
@@ -25,6 +26,14 @@ export async function PUT(
             if (key in body) {
                 updateData[key] = body[key];
             }
+        }
+        if (typeof updateData.track === "string") {
+            updateData.track = normalizeTrack(updateData.track);
+        }
+        if (typeof updateData.recommended_track === "string") {
+            updateData.recommended_track = updateData.recommended_track
+                ? normalizeTrack(updateData.recommended_track)
+                : null;
         }
 
         const { error } = await supabase

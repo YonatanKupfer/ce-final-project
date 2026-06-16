@@ -20,6 +20,7 @@ const NAV_ITEMS = [
     { href: "/admin/pending", label: "הצעות ממתינות", icon: "⏳" },
     { href: "/admin/projects", label: "כל הפרויקטים", icon: "📋" },
     { href: "/admin/registrations", label: "הרשמות", icon: "👥" },
+    { href: "/admin/reports", label: "דוחות", icon: "📊" },
     { href: "/admin/settings", label: "הגדרות", icon: "⚙️" },
 ];
 
