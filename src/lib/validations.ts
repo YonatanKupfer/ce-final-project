@@ -13,6 +13,8 @@ export const projectFormSchema = z.object({
     abstract: z.string().min(10, "נא להזין תקציר מפורט"),
     objective: z.string().min(10, "נא להזין מטרה מפורטת"),
     scope: z.string().min(10, "נא להזין תכולה מפורטת"),
+    relevant_required_course_1: z.string(),
+    relevant_required_course_2: z.string(),
     prereq_course_1: z.string(),
     prereq_course_2: z.string(),
     references_text: z.string().min(1, "שדה חובה"),

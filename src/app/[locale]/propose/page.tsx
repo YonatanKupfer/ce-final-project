@@ -40,6 +40,8 @@ export default async function ProposePage({ searchParams }: PageProps) {
                 abstract: data.abstract,
                 objective: data.objective,
                 scope: data.scope,
+                relevant_required_course_1: data.relevant_required_course_1 || "",
+                relevant_required_course_2: data.relevant_required_course_2 || "",
                 prereq_course_1: data.prereq_course_1 || "",
                 prereq_course_2: data.prereq_course_2 || "",
                 references_text: data.references_text,

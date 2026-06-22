@@ -77,6 +77,8 @@ export async function POST(
             abstract: project.abstract,
             objective: project.objective,
             scope: project.scope,
+            relevant_required_course_1: project.relevant_required_course_1,
+            relevant_required_course_2: project.relevant_required_course_2,
             prereq_course_1: project.prereq_course_1,
             prereq_course_2: project.prereq_course_2,
             references_text: project.references_text,

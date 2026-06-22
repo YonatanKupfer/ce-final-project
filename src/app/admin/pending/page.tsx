@@ -15,7 +15,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import type { Project } from "@/lib/constants";
-import { TRACKS, TRACK_LIST, normalizeTrack, type TrackId } from "@/lib/constants";
+import {
+    REQUIRED_COURSES,
+    TRACKS,
+    TRACK_LIST,
+    normalizeTrack,
+    requiredCourseLabel,
+    type TrackId,
+} from "@/lib/constants";
 import { useAdminYear } from "@/app/admin/year-context";
 
 export default function PendingProjectsPage() {
@@ -196,6 +203,12 @@ export default function PendingProjectsPage() {
                             <InfoField label="תקציר" value={project.abstract} />
                             <InfoField label="מטרה" value={project.objective} />
                             <InfoField label="תכולה" value={project.scope} />
+                            {project.relevant_required_course_1 && (
+                                <InfoField label="קורס חובה רלוונטי #1" value={project.relevant_required_course_1} />
+                            )}
+                            {project.relevant_required_course_2 && (
+                                <InfoField label="קורס חובה רלוונטי #2" value={project.relevant_required_course_2} />
+                            )}
                             {project.prereq_course_1 && (
                                 <InfoField label="קורס קדם #1" value={project.prereq_course_1} />
                             )}
@@ -351,6 +364,16 @@ export default function PendingProjectsPage() {
                             <Label>תכולה</Label>
                             <Textarea value={editData.scope || ""} onChange={(e) => setEditData({ ...editData, scope: e.target.value })} rows={3} />
                         </div>
+                        <RequiredCourseEditSelect
+                            label="קורס חובה רלוונטי #1"
+                            value={editData.relevant_required_course_1 || ""}
+                            onChange={(value) => setEditData({ ...editData, relevant_required_course_1: value })}
+                        />
+                        <RequiredCourseEditSelect
+                            label="קורס חובה רלוונטי #2"
+                            value={editData.relevant_required_course_2 || ""}
+                            onChange={(value) => setEditData({ ...editData, relevant_required_course_2: value })}
+                        />
                         <div>
                             <Label>קורס קדם #1</Label>
                             <Input value={editData.prereq_course_1 || ""} onChange={(e) => setEditData({ ...editData, prereq_course_1: e.target.value })} />
@@ -384,6 +407,41 @@ export default function PendingProjectsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        </div>
+    );
+}
+
+function RequiredCourseEditSelect({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div>
+            <Label>{label}</Label>
+            <Select value={value || "none"} onValueChange={(nextValue) => onChange(nextValue && nextValue !== "none" ? nextValue : "")}>
+                <SelectTrigger className="w-full">
+                    <span data-slot="select-value" className="flex flex-1 text-right">
+                        {value || <span className="text-muted-foreground">—</span>}
+                    </span>
+                </SelectTrigger>
+                <SelectContent className="w-auto min-w-[var(--anchor-width)] max-w-[min(42rem,calc(100vw-2rem))]">
+                    <SelectItem value="none">—</SelectItem>
+                    {REQUIRED_COURSES.map((course) => {
+                        const optionLabel = requiredCourseLabel(course);
+                        return (
+                            <SelectItem key={course.id} value={optionLabel}>
+                                <span className="font-mono me-2">{course.id}</span>
+                                {course.name}
+                            </SelectItem>
+                        );
+                    })}
+                </SelectContent>
+            </Select>
         </div>
     );
 }

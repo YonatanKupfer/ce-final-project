@@ -20,6 +20,8 @@ CREATE TABLE projects (
   abstract TEXT NOT NULL,
   objective TEXT NOT NULL,
   scope TEXT NOT NULL,
+  relevant_required_course_1 TEXT DEFAULT '',
+  relevant_required_course_2 TEXT DEFAULT '',
   prereq_course_1 TEXT DEFAULT '',
   prereq_course_2 TEXT DEFAULT '',
   references_text TEXT NOT NULL,

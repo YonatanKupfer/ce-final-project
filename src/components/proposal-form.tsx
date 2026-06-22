@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { projectFormSchema, type ProjectFormData } from "@/lib/validations";
-import { TRACK_LIST, type TrackId } from "@/lib/constants";
+import { REQUIRED_COURSES, TRACK_LIST, requiredCourseLabel, type TrackId } from "@/lib/constants";
 
 const DRAFT_KEY = "proposal-draft";
 
@@ -51,6 +51,8 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
       abstract: "",
       objective: "",
       scope: "",
+      relevant_required_course_1: "",
+      relevant_required_course_2: "",
       prereq_course_1: "",
       prereq_course_2: "",
       references_text: "",
@@ -269,6 +271,28 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
           <CardTitle className="text-xl">{t("section4")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <FormField
+              label={t("relevantRequiredCourses")}
+              subtitle={t("relevantRequiredCoursesSubtitle")}
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                <RequiredCourseSelect
+                  value={watchedValues.relevant_required_course_1}
+                  excludedValue={watchedValues.relevant_required_course_2}
+                  placeholder={t("relevantRequiredCourse1")}
+                  onChange={(value) => setValue("relevant_required_course_1", value)}
+                />
+                <RequiredCourseSelect
+                  value={watchedValues.relevant_required_course_2}
+                  excludedValue={watchedValues.relevant_required_course_1}
+                  placeholder={t("relevantRequiredCourse2")}
+                  onChange={(value) => setValue("relevant_required_course_2", value)}
+                />
+              </div>
+            </FormField>
+          </div>
+
           <FormField
             label={t("prereq1")}
             subtitle={t("prereqSubtitle")}
@@ -300,6 +324,43 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
         </Button>
       </div>
     </form>
+  );
+}
+
+function RequiredCourseSelect({
+  value,
+  excludedValue,
+  placeholder,
+  onChange,
+}: {
+  value?: string;
+  excludedValue?: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Select
+      value={value || "none"}
+      onValueChange={(nextValue) => onChange(nextValue && nextValue !== "none" ? nextValue : "")}
+    >
+      <SelectTrigger className="w-full min-h-10">
+        <span data-slot="select-value" className="flex flex-1 text-right">
+          {value || <span className="text-muted-foreground">{placeholder}</span>}
+        </span>
+      </SelectTrigger>
+      <SelectContent className="w-auto min-w-[var(--anchor-width)] max-w-[min(42rem,calc(100vw-2rem))]">
+        <SelectItem value="none">—</SelectItem>
+        {REQUIRED_COURSES.map((course) => {
+          const label = requiredCourseLabel(course);
+          return (
+            <SelectItem key={course.id} value={label} disabled={label === excludedValue}>
+              <span className="font-mono me-2">{course.id}</span>
+              {course.name}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
   );
 }
 

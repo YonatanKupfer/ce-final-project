@@ -242,6 +242,13 @@ function ProjectTable({
                                     <DetailSection label="תקציר / Abstract" value={p.abstract} />
                                     <DetailSection label="מטרה / Objective" value={p.objective} />
                                     <DetailSection label="תכולה / Scope" value={p.scope} />
+                                    {(p.relevant_required_course_1 || p.relevant_required_course_2) && (
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground mb-1">קורסי חובה רלוונטיים / Relevant Required Courses</p>
+                                            {p.relevant_required_course_1 && <p className="text-sm">• {p.relevant_required_course_1}</p>}
+                                            {p.relevant_required_course_2 && <p className="text-sm">• {p.relevant_required_course_2}</p>}
+                                        </div>
+                                    )}
                                     {(p.prereq_course_1 || p.prereq_course_2) && (
                                         <div>
                                             <p className="text-sm font-medium text-muted-foreground mb-1">קורסי קדם / Prerequisites</p>
@@ -305,6 +312,13 @@ function ProjectTable({
                                                 <DetailSection label="תקציר / Abstract" value={p.abstract} />
                                                 <DetailSection label="מטרה / Objective" value={p.objective} />
                                                 <DetailSection label="תכולה / Scope" value={p.scope} />
+                                                {(p.relevant_required_course_1 || p.relevant_required_course_2) && (
+                                                    <div>
+                                                        <p className="text-sm font-medium text-muted-foreground mb-1">קורסי חובה רלוונטיים / Relevant Required Courses</p>
+                                                        {p.relevant_required_course_1 && <p className="text-sm">• {p.relevant_required_course_1}</p>}
+                                                        {p.relevant_required_course_2 && <p className="text-sm">• {p.relevant_required_course_2}</p>}
+                                                    </div>
+                                                )}
                                                 {(p.prereq_course_1 || p.prereq_course_2) && (
                                                     <div>
                                                         <p className="text-sm font-medium text-muted-foreground mb-1">קורסי קדם / Prerequisites</p>

@@ -17,6 +17,7 @@ export async function PUT(
             "supervisors_name", "supervisors_email",
             "academic_supervisor_name", "academic_supervisor_email",
             "abstract", "objective", "scope",
+            "relevant_required_course_1", "relevant_required_course_2",
             "prereq_course_1", "prereq_course_2", "references_text",
             "status", "project_number", "is_taken", "review_notes",
         ];

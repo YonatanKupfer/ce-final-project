@@ -17,7 +17,14 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import type { Project } from "@/lib/constants";
-import { TRACKS, TRACK_LIST, normalizeTrack, type TrackId } from "@/lib/constants";
+import {
+    REQUIRED_COURSES,
+    TRACKS,
+    TRACK_LIST,
+    normalizeTrack,
+    requiredCourseLabel,
+    type TrackId,
+} from "@/lib/constants";
 import { useAdminYear } from "@/app/admin/year-context";
 
 export default function AdminProjectsPage() {
@@ -339,6 +346,16 @@ export default function AdminProjectsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <RequiredCourseEditSelect
+                            label="קורס חובה רלוונטי #1"
+                            value={editData.relevant_required_course_1 || ""}
+                            onChange={(value) => setEditData({ ...editData, relevant_required_course_1: value })}
+                        />
+                        <RequiredCourseEditSelect
+                            label="קורס חובה רלוונטי #2"
+                            value={editData.relevant_required_course_2 || ""}
+                            onChange={(value) => setEditData({ ...editData, relevant_required_course_2: value })}
+                        />
                         <EditField label="קורס קדם #1" value={editData.prereq_course_1 || ""} onChange={(v) => setEditData({ ...editData, prereq_course_1: v })} />
                         <EditField label="קורס קדם #2" value={editData.prereq_course_2 || ""} onChange={(v) => setEditData({ ...editData, prereq_course_2: v })} />
                         <div>
@@ -366,6 +383,41 @@ export default function AdminProjectsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        </div>
+    );
+}
+
+function RequiredCourseEditSelect({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div>
+            <Label>{label}</Label>
+            <Select value={value || "none"} onValueChange={(nextValue) => onChange(nextValue && nextValue !== "none" ? nextValue : "")}>
+                <SelectTrigger className="w-full">
+                    <span data-slot="select-value" className="flex flex-1 text-right">
+                        {value || <span className="text-muted-foreground">—</span>}
+                    </span>
+                </SelectTrigger>
+                <SelectContent className="w-auto min-w-[var(--anchor-width)] max-w-[min(42rem,calc(100vw-2rem))]">
+                    <SelectItem value="none">—</SelectItem>
+                    {REQUIRED_COURSES.map((course) => {
+                        const optionLabel = requiredCourseLabel(course);
+                        return (
+                            <SelectItem key={course.id} value={optionLabel}>
+                                <span className="font-mono me-2">{course.id}</span>
+                                {course.name}
+                            </SelectItem>
+                        );
+                    })}
+                </SelectContent>
+            </Select>
         </div>
     );
 }

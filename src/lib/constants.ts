@@ -11,6 +11,47 @@ export type TrackId = keyof typeof TRACKS;
 
 export const TRACK_LIST = Object.values(TRACKS);
 
+export const REQUIRED_COURSES = [
+    { id: "83102", name: "פיזיקה 1" },
+    { id: "83110", name: "אלגברה לינארית" },
+    { id: "83112", name: "חשבון דיפרנציאלי ואינטגרלי 1" },
+    { id: "83108", name: "קומבינטוריקה" },
+    { id: "83120", name: "מבוא להנדסת תוכנה ומחשבים" },
+    { id: "83103", name: "פיזיקה 2" },
+    { id: "83114", name: "חשבון דיפרנציאלי ואינטגרלי 2" },
+    { id: "83115", name: "משוואות דיפרנציאליות רגילות" },
+    { id: "83109", name: "תורת הקבוצות ולוגיקה" },
+    { id: "83119", name: "מבני נתונים ואלגוריתמים 1" },
+    { id: "83140", name: "מערכות לוגיות ספרתיות" },
+    { id: "83011", name: "תכנות פייתון" },
+    { id: "83206", name: "מערכות לינאריות" },
+    { id: "83210", name: "אלגברה מודרנית" },
+    { id: "83211", name: "פונקציות מרוכבות" },
+    { id: "83223", name: "מבוא לתורת המספרים" },
+    { id: "83237", name: "מבוא לתורת החשמל" },
+    { id: "83253", name: "תכן לוגי" },
+    { id: "83501", name: "מבוא להסתברות" },
+    { id: "83218", name: "מבנים אלגבריים" },
+    { id: "83224", name: "מבני נתונים ואלגוריתמים 2" },
+    { id: "83238", name: "מעבדה במבוא להנדסת חשמל" },
+    { id: "83245", name: "תורת המיתוג" },
+    { id: "83255", name: "עקרונות מערכות הפעלה" },
+    { id: "83250", name: "ארכיטקטורת ומערכות" },
+    { id: "83203", name: "מבוא לאנליזה" },
+    { id: "83302", name: "אותות אקראיים ורעש" },
+    { id: "83317", name: "מעבדה במערכות משובצות" },
+    { id: "83881", name: "מערכות הפעלה" },
+    { id: "83455", name: "רשתות מחשבים ואינטרנט" },
+    { id: "83458", name: "מבוא לקריפטוגרפיה" },
+    { id: "83323", name: "מבוא לעיבוד ספרתי" },
+    { id: "83622", name: "מבוא ללמידת מכונה" },
+    { id: "83301", name: "מבנה מחשבים ספרתיים" },
+] as const;
+
+export function requiredCourseLabel(course: (typeof REQUIRED_COURSES)[number]): string {
+    return `${course.id} - ${course.name}`;
+}
+
 const LEGACY_TRACK_MAP: Record<string, TrackId> = {
     crypto: "cyber",
     networks: "networks",
@@ -57,6 +98,8 @@ export interface Project {
     abstract: string;
     objective: string;
     scope: string;
+    relevant_required_course_1: string | null;
+    relevant_required_course_2: string | null;
     prereq_course_1: string | null;
     prereq_course_2: string | null;
     references_text: string;

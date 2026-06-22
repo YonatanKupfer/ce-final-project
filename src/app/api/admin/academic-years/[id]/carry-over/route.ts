@@ -81,6 +81,8 @@ export async function POST(
             abstract: p.abstract,
             objective: p.objective,
             scope: p.scope,
+            relevant_required_course_1: p.relevant_required_course_1,
+            relevant_required_course_2: p.relevant_required_course_2,
             prereq_course_1: p.prereq_course_1,
             prereq_course_2: p.prereq_course_2,
             references_text: p.references_text,
