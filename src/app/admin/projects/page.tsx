@@ -301,8 +301,14 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>אשכול</Label>
                             <Select value={editData.track ? normalizeTrack(editData.track) : ""} onValueChange={(v) => setEditData({ ...editData, track: v as TrackId })}>
-                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                                <SelectContent className="w-auto min-w-[var(--anchor-width)]">
+                                <SelectTrigger className="w-full">
+                                    <span data-slot="select-value" className="flex flex-1">
+                                        {editData.track
+                                            ? TRACKS[normalizeTrack(editData.track)]?.label
+                                            : <span className="text-muted-foreground">בחר אשכול</span>}
+                                    </span>
+                                </SelectTrigger>
+                                <SelectContent className="min-w-[var(--anchor-width)]">
                                     {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -339,8 +345,14 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>מומלץ גם לאשכול</Label>
                             <Select value={editData.recommended_track ? normalizeTrack(editData.recommended_track) : "none"} onValueChange={(v) => setEditData({ ...editData, recommended_track: v === "none" ? null : v as TrackId })}>
-                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                                <SelectContent className="w-auto min-w-[var(--anchor-width)]">
+                                <SelectTrigger className="w-full">
+                                    <span data-slot="select-value" className="flex flex-1">
+                                        {editData.recommended_track
+                                            ? TRACKS[normalizeTrack(editData.recommended_track)]?.label
+                                            : "—"}
+                                    </span>
+                                </SelectTrigger>
+                                <SelectContent className="min-w-[var(--anchor-width)]">
                                     <SelectItem value="none">—</SelectItem>
                                     {TRACK_LIST.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
                                 </SelectContent>

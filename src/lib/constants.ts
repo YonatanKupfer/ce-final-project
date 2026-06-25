@@ -64,6 +64,7 @@ const LEGACY_TRACK_MAP: Record<string, TrackId> = {
 
 export function normalizeTrack(track: string | null | undefined): TrackId {
     if (!track) return "cyber";
+    if (track in TRACKS) return track as TrackId;
     return LEGACY_TRACK_MAP[track] ?? "cyber";
 }
 
