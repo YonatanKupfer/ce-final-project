@@ -104,6 +104,7 @@ export interface Project {
     prereq_course_1: string | null;
     prereq_course_2: string | null;
     references_text: string;
+    ai_complexity_justification: string | null;
     review_notes: string | null;
     edit_token: string;
     is_taken: boolean;

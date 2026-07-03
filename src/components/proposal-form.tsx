@@ -56,6 +56,7 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
       prereq_course_1: "",
       prereq_course_2: "",
       references_text: "",
+      ai_complexity_justification: "",
     },
   });
 
@@ -314,6 +315,27 @@ export function ProposalForm({ editToken, initialData }: ProposalFormProps) {
             required
           >
             <Textarea {...register("references_text")} rows={5} />
+          </FormField>
+        </CardContent>
+      </Card>
+
+      {/* Section 5: Admin-only note on AI complexity */}
+      <Card className="border-dashed border-muted-foreground/40 bg-muted/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            {t("aiComplexitySection")}
+            <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full border">
+              {t("adminOnlyBadge")}
+            </span>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground leading-relaxed">{t("adminOnlyNote")}</p>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            label={t("aiComplexityLabel")}
+            subtitle={t("aiComplexitySubtitle")}
+          >
+            <Textarea {...register("ai_complexity_justification")} rows={4} />
           </FormField>
         </CardContent>
       </Card>

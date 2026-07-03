@@ -374,6 +374,13 @@ export default function AdminProjectsPage() {
                             <Label>מקורות</Label>
                             <Textarea value={editData.references_text || ""} onChange={(e) => setEditData({ ...editData, references_text: e.target.value })} rows={3} />
                         </div>
+                        <div className="rounded-lg border border-dashed p-3 space-y-2 bg-muted/30">
+                            <Label className="flex items-center gap-2">
+                                מורכבות הנדסית מול כלי AI
+                                <span className="text-[10px] font-normal text-muted-foreground bg-background border px-1.5 py-0.5 rounded-full">גלוי לניהול בלבד</span>
+                            </Label>
+                            <Textarea value={editData.ai_complexity_justification || ""} onChange={(e) => setEditData({ ...editData, ai_complexity_justification: e.target.value })} rows={3} />
+                        </div>
                         <div>
                             <Label>הערות תיקון</Label>
                             <Textarea value={editData.review_notes || ""} onChange={(e) => setEditData({ ...editData, review_notes: e.target.value })} rows={2} />

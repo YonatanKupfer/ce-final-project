@@ -25,6 +25,7 @@ CREATE TABLE projects (
   prereq_course_1 TEXT DEFAULT '',
   prereq_course_2 TEXT DEFAULT '',
   references_text TEXT NOT NULL,
+  ai_complexity_justification TEXT,
   review_notes TEXT,
   edit_token UUID NOT NULL DEFAULT uuid_generate_v4(),
   is_taken BOOLEAN NOT NULL DEFAULT FALSE,

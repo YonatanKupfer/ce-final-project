@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
                 prereq_course_1: data.prereq_course_1 || "",
                 prereq_course_2: data.prereq_course_2 || "",
                 references_text: data.references_text,
+                ai_complexity_justification: data.ai_complexity_justification || null,
                 status: "pending",
             })
             .select()

@@ -216,6 +216,15 @@ export default function PendingProjectsPage() {
                                 <InfoField label="קורס קדם #2" value={project.prereq_course_2} />
                             )}
                             <InfoField label="מקורות" value={project.references_text} />
+                            {project.ai_complexity_justification && (
+                                <div className="bg-muted/60 border border-dashed rounded-lg p-3 space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                                        מורכבות הנדסית מול כלי AI
+                                        <span className="bg-background border px-1.5 py-0.5 rounded-full text-[10px]">גלוי לניהול בלבד</span>
+                                    </p>
+                                    <p className="text-sm whitespace-pre-wrap">{project.ai_complexity_justification}</p>
+                                </div>
+                            )}
 
                             {project.review_notes && (
                                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
@@ -385,6 +394,13 @@ export default function PendingProjectsPage() {
                         <div>
                             <Label>מקורות</Label>
                             <Textarea value={editData.references_text || ""} onChange={(e) => setEditData({ ...editData, references_text: e.target.value })} rows={3} />
+                        </div>
+                        <div className="rounded-lg border border-dashed p-3 space-y-2 bg-muted/30">
+                            <Label className="flex items-center gap-2">
+                                מורכבות הנדסית מול כלי AI
+                                <span className="text-[10px] font-normal text-muted-foreground bg-background border px-1.5 py-0.5 rounded-full">גלוי לניהול בלבד</span>
+                            </Label>
+                            <Textarea value={editData.ai_complexity_justification || ""} onChange={(e) => setEditData({ ...editData, ai_complexity_justification: e.target.value })} rows={3} />
                         </div>
                         <div>
                             <Label>הערות תיקון</Label>

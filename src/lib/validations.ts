@@ -18,6 +18,7 @@ export const projectFormSchema = z.object({
     prereq_course_1: z.string(),
     prereq_course_2: z.string(),
     references_text: z.string().min(1, "שדה חובה"),
+    ai_complexity_justification: z.string(),
 });
 
 export type ProjectFormData = z.infer<typeof projectFormSchema>;
