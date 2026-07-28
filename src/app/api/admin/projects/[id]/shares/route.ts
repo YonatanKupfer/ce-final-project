@@ -11,7 +11,7 @@ export async function GET(
 
         const { data: shares, error } = await supabase
             .from("project_shares")
-            .select("*, comments:project_share_comments(*)")
+            .select("*, recipients:project_share_recipients(*), comments:project_share_comments(*)")
             .eq("project_id", id)
             .order("created_at", { ascending: false });
 

@@ -14,7 +14,7 @@ export async function POST(
         if (!parsed.success) {
             return NextResponse.json({ error: parsed.error.issues[0]?.message || "נתונים לא תקינים" }, { status: 400 });
         }
-        const { recipient_email, recipient_name, admin_note, created_by_email } = parsed.data;
+        const { recipients, admin_note, created_by_email } = parsed.data;
 
         const supabase = getAdminClient();
 
@@ -32,8 +32,6 @@ export async function POST(
             .from("project_shares")
             .insert({
                 project_id: id,
-                recipient_email,
-                recipient_name: recipient_name || null,
                 admin_note: admin_note || null,
                 created_by_email,
             })
@@ -44,31 +42,44 @@ export async function POST(
             return NextResponse.json({ error: error?.message || "שגיאה בשיתוף" }, { status: 500 });
         }
 
+        const { data: insertedRecipients, error: recipientsError } = await supabase
+            .from("project_share_recipients")
+            .insert(recipients.map((r) => ({ share_id: share.id, email: r.email, name: r.name || null })))
+            .select("*");
+
+        if (recipientsError) {
+            return NextResponse.json({ error: recipientsError.message }, { status: 500 });
+        }
+
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const shareLink = `${appUrl}/shared-project/${share.token}`;
 
-        await sendEmail({
-            to: recipient_email,
-            subject: `שותף איתך פרויקט לצפייה: ${project.title_he}`,
-            html: wrapEmailHtml(`
-        <h2>שיתוף פרויקט לצפייה</h2>
-        <p>שלום${recipient_name ? ` ${recipient_name}` : ""},</p>
-        <p>שותף/ה איתך פרויקט הגמר הבא לצפייה ומתן משוב:</p>
-        <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px;">${project.project_number ?? "—"}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט (עברית):</td><td style="padding: 8px;">${project.title_he}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${project.title_en}</td></tr>
-        </table>
-        ${admin_note ? `<p><strong>הערה:</strong><br/>${admin_note}</p>` : ""}
-        <p>
-          <a href="${shareLink}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
-            צפייה בפרויקט והוספת הערות
-          </a>
-        </p>
-      `),
-        }).catch(console.error);
+        await Promise.all(
+            recipients.map((r) =>
+                sendEmail({
+                    to: r.email,
+                    subject: `שותף איתך פרויקט לצפייה: ${project.title_he}`,
+                    html: wrapEmailHtml(`
+            <h2>שיתוף פרויקט לצפייה</h2>
+            <p>שלום${r.name ? ` ${r.name}` : ""},</p>
+            <p>שותף/ה איתך פרויקט הגמר הבא לצפייה ומתן משוב:</p>
+            <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+              <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px;">${project.project_number ?? "—"}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט (עברית):</td><td style="padding: 8px;">${project.title_he}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${project.title_en}</td></tr>
+            </table>
+            ${admin_note ? `<p><strong>הערה:</strong><br/>${admin_note}</p>` : ""}
+            <p>
+              <a href="${shareLink}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                צפייה בפרויקט והוספת הערות
+              </a>
+            </p>
+          `),
+                }).catch(console.error)
+            )
+        );
 
-        return NextResponse.json({ share });
+        return NextResponse.json({ share: { ...share, recipients: insertedRecipients || [] } });
     } catch (err) {
         console.error("POST /api/admin/projects/[id]/share error:", err);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

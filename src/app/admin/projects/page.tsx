@@ -40,8 +40,10 @@ export default function AdminProjectsPage() {
     const [adminEmail, setAdminEmail] = useState("");
     const [shares, setShares] = useState<ProjectShare[]>([]);
     const [loadingShares, setLoadingShares] = useState(false);
-    const [shareForm, setShareForm] = useState({ recipient_email: "", recipient_name: "", admin_note: "" });
+    const [shareRecipients, setShareRecipients] = useState([{ email: "", name: "" }]);
+    const [shareNote, setShareNote] = useState("");
     const [sendingShare, setSendingShare] = useState(false);
+    const [deletingShareId, setDeletingShareId] = useState<string | null>(null);
 
     const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
@@ -75,30 +77,52 @@ export default function AdminProjectsPage() {
     useEffect(() => {
         if (editProject) {
             loadShares(editProject.id);
-            setShareForm({ recipient_email: "", recipient_name: "", admin_note: "" });
+            setShareRecipients([{ email: "", name: "" }]);
+            setShareNote("");
         } else {
             setShares([]);
         }
     }, [editProject, loadShares]);
 
     const handleSendShare = async () => {
-        if (!editProject || !shareForm.recipient_email.trim()) return;
+        if (!editProject) return;
+        const recipients = shareRecipients
+            .map((r) => ({ email: r.email.trim(), name: r.name.trim() }))
+            .filter((r) => r.email);
+        if (recipients.length === 0) return;
         setSendingShare(true);
         try {
             const res = await fetch(`/api/admin/projects/${editProject.id}/share`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...shareForm, created_by_email: adminEmail }),
+                body: JSON.stringify({ recipients, admin_note: shareNote, created_by_email: adminEmail }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             toast.success("הפרויקט שותף בהצלחה");
-            setShareForm({ recipient_email: "", recipient_name: "", admin_note: "" });
+            setShareRecipients([{ email: "", name: "" }]);
+            setShareNote("");
             loadShares(editProject.id);
         } catch (err: unknown) {
             toast.error((err as Error).message || "שגיאה בשיתוף הפרויקט");
         } finally {
             setSendingShare(false);
+        }
+    };
+
+    const handleDeleteShare = async (share: ProjectShare) => {
+        if (!editProject) return;
+        if (!confirm("למחוק את השרשור? כל ההערות בו יימחקו לצמיתות.")) return;
+        setDeletingShareId(share.id);
+        try {
+            const res = await fetch(`/api/admin/projects/${editProject.id}/shares/${share.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error();
+            toast.success("השרשור נמחק");
+            loadShares(editProject.id);
+        } catch {
+            toast.error("שגיאה במחיקת השרשור");
+        } finally {
+            setDeletingShareId(null);
         }
     };
 
@@ -448,29 +472,59 @@ export default function AdminProjectsPage() {
                         </div>
                         <div className="rounded-lg border border-dashed p-3 space-y-3 bg-muted/30">
                             <Label>שיתוף עם גורם חיצוני</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <Input
-                                    placeholder="אימייל הנמען"
-                                    value={shareForm.recipient_email}
-                                    onChange={(e) => setShareForm({ ...shareForm, recipient_email: e.target.value })}
-                                    dir="ltr"
-                                />
-                                <Input
-                                    placeholder="שם הנמען (אופציונלי)"
-                                    value={shareForm.recipient_name}
-                                    onChange={(e) => setShareForm({ ...shareForm, recipient_name: e.target.value })}
-                                />
+                            <div className="space-y-2">
+                                {shareRecipients.map((r, i) => (
+                                    <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+                                        <Input
+                                            placeholder="אימייל הנמען"
+                                            value={r.email}
+                                            onChange={(e) => {
+                                                const next = [...shareRecipients];
+                                                next[i] = { ...next[i], email: e.target.value };
+                                                setShareRecipients(next);
+                                            }}
+                                            dir="ltr"
+                                        />
+                                        <Input
+                                            placeholder="שם הנמען (אופציונלי)"
+                                            value={r.name}
+                                            onChange={(e) => {
+                                                const next = [...shareRecipients];
+                                                next[i] = { ...next[i], name: e.target.value };
+                                                setShareRecipients(next);
+                                            }}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:text-destructive"
+                                            disabled={shareRecipients.length === 1}
+                                            onClick={() => setShareRecipients(shareRecipients.filter((_, idx) => idx !== i))}
+                                        >
+                                            ✕
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShareRecipients([...shareRecipients, { email: "", name: "" }])}
+                                >
+                                    + הוספת נמען
+                                </Button>
                             </div>
                             <Textarea
-                                placeholder="הערה לנמען (אופציונלי)"
-                                value={shareForm.admin_note}
-                                onChange={(e) => setShareForm({ ...shareForm, admin_note: e.target.value })}
+                                placeholder="הערה לנמענים (אופציונלי)"
+                                value={shareNote}
+                                onChange={(e) => setShareNote(e.target.value)}
                                 rows={2}
                             />
                             <Button
                                 size="sm"
                                 onClick={handleSendShare}
-                                disabled={sendingShare || !shareForm.recipient_email.trim()}
+                                disabled={sendingShare || !shareRecipients.some((r) => r.email.trim())}
                             >
                                 {sendingShare ? "שולח..." : "שליחה לגורם חיצוני"}
                             </Button>
@@ -482,12 +536,28 @@ export default function AdminProjectsPage() {
                                     {shares.map((share) => (
                                         <div key={share.id} className="bg-background rounded-lg border p-2 space-y-1">
                                             <div className="flex items-center justify-between text-sm">
-                                                <span className="font-medium">{share.recipient_name || share.recipient_email}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {new Date(share.created_at).toLocaleDateString("he-IL")}
+                                                <span className="font-medium">
+                                                    {(share.recipients ?? []).map((r) => r.name || r.email).join(", ") || "—"}
                                                 </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(share.created_at).toLocaleDateString("he-IL")}
+                                                    </span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive h-6 px-2"
+                                                        disabled={deletingShareId === share.id}
+                                                        onClick={() => handleDeleteShare(share)}
+                                                    >
+                                                        🗑️
+                                                    </Button>
+                                                </div>
                                             </div>
-                                            <p className="text-xs text-muted-foreground" dir="ltr">{share.recipient_email}</p>
+                                            <p className="text-xs text-muted-foreground" dir="ltr">
+                                                {(share.recipients ?? []).map((r) => r.email).join(", ")}
+                                            </p>
                                             {(share.comments?.length ?? 0) > 0 ? (
                                                 <div className="space-y-1 pt-1">
                                                     {share.comments!.map((c) => (

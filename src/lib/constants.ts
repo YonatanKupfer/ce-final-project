@@ -117,12 +117,19 @@ export interface ProjectShare {
     id: string;
     project_id: string;
     token: string;
-    recipient_email: string;
-    recipient_name: string | null;
     admin_note: string | null;
     created_by_email: string;
     created_at: string;
+    recipients?: ProjectShareRecipient[];
     comments?: ProjectShareComment[];
+}
+
+export interface ProjectShareRecipient {
+    id: string;
+    share_id: string;
+    email: string;
+    name: string | null;
+    created_at: string;
 }
 
 export interface ProjectShareComment {

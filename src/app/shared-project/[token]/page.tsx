@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TRACKS, normalizeTrack, type PublicSafeProject, type ProjectShareComment } from "@/lib/constants";
 
 function DetailSection({ label, value }: { label: string; value: string | null }) {
@@ -29,6 +31,7 @@ export default function SharedProjectPage() {
     const [loading, setLoading] = useState(true);
     const [invalid, setInvalid] = useState(false);
     const [newComment, setNewComment] = useState("");
+    const [authorName, setAuthorName] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
@@ -49,21 +52,24 @@ export default function SharedProjectPage() {
             }
         }
         load();
+        const savedName = window.localStorage.getItem(`shared-project-author:${token}`);
+        if (savedName) setAuthorName(savedName);
     }, [token]);
 
     const handleSubmitComment = async () => {
-        if (!newComment.trim()) return;
+        if (!newComment.trim() || !authorName.trim()) return;
         setSubmitting(true);
         try {
             const res = await fetch(`/api/shared-project/${token}/comments`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ comment_text: newComment.trim() }),
+                body: JSON.stringify({ author_name: authorName.trim(), comment_text: newComment.trim() }),
             });
             if (res.ok) {
                 const data = await res.json();
                 setComments((prev) => [...prev, data.comment]);
                 setNewComment("");
+                window.localStorage.setItem(`shared-project-author:${token}`, authorName.trim());
             }
         } finally {
             setSubmitting(false);
@@ -160,6 +166,14 @@ export default function SharedProjectPage() {
                         </div>
 
                         <div className="space-y-2">
+                            <div>
+                                <Label>השם שלך</Label>
+                                <Input
+                                    placeholder="השם שיוצג ליד ההערה"
+                                    value={authorName}
+                                    onChange={(e) => setAuthorName(e.target.value)}
+                                />
+                            </div>
                             <Textarea
                                 placeholder="הוספת הערה..."
                                 value={newComment}
@@ -168,7 +182,7 @@ export default function SharedProjectPage() {
                             />
                             <Button
                                 onClick={handleSubmitComment}
-                                disabled={submitting || !newComment.trim()}
+                                disabled={submitting || !newComment.trim() || !authorName.trim()}
                                 className="w-full"
                             >
                                 {submitting ? "שולח..." : "שליחת הערה"}

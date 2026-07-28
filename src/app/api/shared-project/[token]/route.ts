@@ -15,7 +15,7 @@ export async function GET(
 
         const { data: share } = await supabase
             .from("project_shares")
-            .select(`id, recipient_name, project:projects(${PUBLIC_SAFE_PROJECT_COLUMNS})`)
+            .select(`id, project:projects(${PUBLIC_SAFE_PROJECT_COLUMNS})`)
             .eq("token", token)
             .single();
 
@@ -31,7 +31,6 @@ export async function GET(
 
         return NextResponse.json({
             project: share.project,
-            recipientName: share.recipient_name,
             comments: comments || [],
         });
     } catch (err) {

@@ -19,7 +19,7 @@ export async function POST(
 
         const { data: share } = await supabase
             .from("project_shares")
-            .select("id, recipient_email, recipient_name, project:projects(title_he)")
+            .select("id, project:projects(title_he)")
             .eq("token", token)
             .single();
 
@@ -27,7 +27,7 @@ export async function POST(
             return NextResponse.json({ error: "Invalid token" }, { status: 404 });
         }
 
-        const authorLabel = share.recipient_name || share.recipient_email;
+        const authorLabel = parsed.data.author_name.trim();
 
         const { data: comment, error } = await supabase
             .from("project_share_comments")
