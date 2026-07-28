@@ -35,3 +35,14 @@ export const registrationFormSchema = z.object({
 });
 
 export type RegistrationFormData = z.infer<typeof registrationFormSchema>;
+
+export const shareProjectSchema = z.object({
+    recipient_email: z.string().email("כתובת אימייל לא תקינה"),
+    recipient_name: z.string(),
+    admin_note: z.string(),
+    created_by_email: z.string().min(1),
+});
+
+export const shareCommentSchema = z.object({
+    comment_text: z.string().min(1, "נא להזין תגובה"),
+});

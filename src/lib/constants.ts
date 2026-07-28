@@ -113,6 +113,37 @@ export interface Project {
     updated_at: string;
 }
 
+export interface ProjectShare {
+    id: string;
+    project_id: string;
+    token: string;
+    recipient_email: string;
+    recipient_name: string | null;
+    admin_note: string | null;
+    created_by_email: string;
+    created_at: string;
+    comments?: ProjectShareComment[];
+}
+
+export interface ProjectShareComment {
+    id: string;
+    share_id: string;
+    comment_text: string;
+    author_label: string;
+    created_at: string;
+}
+
+// Public-safe subset of Project fields — the only ones an external reviewer
+// (non-admin, accessing via a shared-project token link) may see.
+// Keep in sync with the SELECT list in /api/shared-project/[token]/route.ts.
+export type PublicSafeProject = Pick<
+    Project,
+    | "id" | "project_number" | "title_he" | "title_en" | "track" | "recommended_track"
+    | "supervisors_name" | "academic_supervisor_name" | "abstract" | "objective" | "scope"
+    | "relevant_required_course_1" | "relevant_required_course_2"
+    | "prereq_course_1" | "prereq_course_2" | "references_text"
+>;
+
 export interface Registration {
     id: string;
     project_id: string;

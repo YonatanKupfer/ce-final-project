@@ -16,7 +16,7 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import type { Project } from "@/lib/constants";
+import type { Project, ProjectShare } from "@/lib/constants";
 import {
     REQUIRED_COURSES,
     TRACKS,
@@ -27,6 +27,8 @@ import {
 } from "@/lib/constants";
 import { useAdminYear } from "@/app/admin/year-context";
 
+const DEV_ADMIN = process.env.NEXT_PUBLIC_DEV_ADMIN === "true";
+
 export default function AdminProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,11 +37,70 @@ export default function AdminProjectsPage() {
     const [editProject, setEditProject] = useState<Project | null>(null);
     const [editData, setEditData] = useState<Partial<Project>>({});
     const [saving, setSaving] = useState(false);
+    const [adminEmail, setAdminEmail] = useState("");
+    const [shares, setShares] = useState<ProjectShare[]>([]);
+    const [loadingShares, setLoadingShares] = useState(false);
+    const [shareForm, setShareForm] = useState({ recipient_email: "", recipient_name: "", admin_note: "" });
+    const [sendingShare, setSendingShare] = useState(false);
 
     const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
     const isArchivedYear = selectedYear ? !selectedYear.is_active : false;
     const [carryingOverId, setCarryingOverId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (DEV_ADMIN) {
+            setAdminEmail("dev@local");
+            return;
+        }
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user?.email) setAdminEmail(data.user.email);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const loadShares = useCallback(async (projectId: string) => {
+        setLoadingShares(true);
+        try {
+            const res = await fetch(`/api/admin/projects/${projectId}/shares`);
+            const data = await res.json();
+            setShares(data.shares || []);
+        } catch {
+            setShares([]);
+        } finally {
+            setLoadingShares(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (editProject) {
+            loadShares(editProject.id);
+            setShareForm({ recipient_email: "", recipient_name: "", admin_note: "" });
+        } else {
+            setShares([]);
+        }
+    }, [editProject, loadShares]);
+
+    const handleSendShare = async () => {
+        if (!editProject || !shareForm.recipient_email.trim()) return;
+        setSendingShare(true);
+        try {
+            const res = await fetch(`/api/admin/projects/${editProject.id}/share`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...shareForm, created_by_email: adminEmail }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            toast.success("הפרויקט שותף בהצלחה");
+            setShareForm({ recipient_email: "", recipient_name: "", admin_note: "" });
+            loadShares(editProject.id);
+        } catch (err: unknown) {
+            toast.error((err as Error).message || "שגיאה בשיתוף הפרויקט");
+        } finally {
+            setSendingShare(false);
+        }
+    };
 
     const loadProjects = useCallback(async () => {
         let query = supabase
@@ -384,6 +445,70 @@ export default function AdminProjectsPage() {
                         <div>
                             <Label>הערות תיקון</Label>
                             <Textarea value={editData.review_notes || ""} onChange={(e) => setEditData({ ...editData, review_notes: e.target.value })} rows={2} />
+                        </div>
+                        <div className="rounded-lg border border-dashed p-3 space-y-3 bg-muted/30">
+                            <Label>שיתוף עם גורם חיצוני</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <Input
+                                    placeholder="אימייל הנמען"
+                                    value={shareForm.recipient_email}
+                                    onChange={(e) => setShareForm({ ...shareForm, recipient_email: e.target.value })}
+                                    dir="ltr"
+                                />
+                                <Input
+                                    placeholder="שם הנמען (אופציונלי)"
+                                    value={shareForm.recipient_name}
+                                    onChange={(e) => setShareForm({ ...shareForm, recipient_name: e.target.value })}
+                                />
+                            </div>
+                            <Textarea
+                                placeholder="הערה לנמען (אופציונלי)"
+                                value={shareForm.admin_note}
+                                onChange={(e) => setShareForm({ ...shareForm, admin_note: e.target.value })}
+                                rows={2}
+                            />
+                            <Button
+                                size="sm"
+                                onClick={handleSendShare}
+                                disabled={sendingShare || !shareForm.recipient_email.trim()}
+                            >
+                                {sendingShare ? "שולח..." : "שליחה לגורם חיצוני"}
+                            </Button>
+
+                            {loadingShares ? (
+                                <p className="text-sm text-muted-foreground">טוען שיתופים...</p>
+                            ) : shares.length > 0 && (
+                                <div className="space-y-2 pt-2 border-t">
+                                    {shares.map((share) => (
+                                        <div key={share.id} className="bg-background rounded-lg border p-2 space-y-1">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="font-medium">{share.recipient_name || share.recipient_email}</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {new Date(share.created_at).toLocaleDateString("he-IL")}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground" dir="ltr">{share.recipient_email}</p>
+                                            {(share.comments?.length ?? 0) > 0 ? (
+                                                <div className="space-y-1 pt-1">
+                                                    {share.comments!.map((c) => (
+                                                        <div key={c.id} className="bg-muted/50 rounded p-2 text-sm">
+                                                            <div className="flex items-center justify-between mb-0.5">
+                                                                <span className="text-xs font-medium">{c.author_label}</span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {new Date(c.created_at).toLocaleString("he-IL")}
+                                                                </span>
+                                                            </div>
+                                                            <p className="whitespace-pre-wrap">{c.comment_text}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground">אין תגובות עדיין</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             <Checkbox
