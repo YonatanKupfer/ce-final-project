@@ -163,6 +163,8 @@ export interface Registration {
     student2_email: string | null;
     is_ce_student: boolean;
     approval_token: string;
+    reminder_count: number;
+    last_reminder_sent_at: string | null;
     created_at: string;
     project?: Project;
 }

@@ -88,6 +88,24 @@ const ASSIGNED_HEADERS = [
     "שנה אקדמית",
 ];
 
+const REMINDER_HEADERS = [
+    "מספר פרויקט",
+    "סטטוס",
+    "אשכול",
+    "שם פרויקט עברית",
+    "מנחה",
+    "מייל מנחה",
+    "אחראי אקדמי",
+    "מייל אחראי אקדמי",
+    "סטודנט 1",
+    "מייל סטודנט 1",
+    "סטודנט 2",
+    "מייל סטודנט 2",
+    "תאריך הרשמה",
+    "מספר תזכורות שנשלחו",
+    "תאריך תזכורת אחרונה",
+];
+
 const SUMMARY_HEADERS = [
     "אשכול",
     "סהכ פרויקטים",
@@ -172,6 +190,29 @@ function assignedRow(registration: RegistrationWithProject) {
         registration.is_ce_student ? "כן" : "לא",
         formatDate(registration.created_at),
         yearLabel(project),
+    ];
+}
+
+function reminderRow(registration: RegistrationWithProject) {
+    const project = registration.project;
+    const track = normalizeTrack(project?.track);
+
+    return [
+        project?.project_number,
+        registration.status,
+        TRACKS[track].label,
+        project?.title_he,
+        project?.supervisors_name,
+        project?.supervisors_email,
+        project?.academic_supervisor_name,
+        project?.academic_supervisor_email,
+        registration.student1_name,
+        registration.student1_email,
+        registration.student2_name,
+        registration.student2_email,
+        formatDate(registration.created_at),
+        registration.reminder_count,
+        formatDate(registration.last_reminder_sent_at),
     ];
 }
 
@@ -264,6 +305,10 @@ export default function AdminReportsPage() {
         )),
         [registrations]
     );
+    const pendingRegistrations = useMemo(
+        () => registrations.filter((registration) => registration.status === "pending"),
+        [registrations]
+    );
     const summary = useMemo(() => buildSummary(projects), [projects]);
     const selectedYearSlug = selectedYear?.slug;
 
@@ -280,6 +325,14 @@ export default function AdminReportsPage() {
             filename("assigned-projects", selectedYearSlug),
             ASSIGNED_HEADERS,
             assignedRegistrations.map(assignedRow)
+        );
+    };
+
+    const exportPendingRegistrations = () => {
+        downloadCsv(
+            filename("pending-registrations", selectedYearSlug),
+            REMINDER_HEADERS,
+            pendingRegistrations.map(reminderRow)
         );
     };
 
@@ -325,7 +378,7 @@ export default function AdminReportsPage() {
                 )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>כל הפרויקטים</CardTitle>
@@ -356,6 +409,26 @@ export default function AdminReportsPage() {
                             disabled={assignedRegistrations.length === 0}
                         >
                             ייצוא פרויקטים מאוישים
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>בקשות הרשמה ממתינות</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            בקשות הרשמה שטרם אושרו/נדחו, כולל מספר התזכורות שנשלחו למנחה ולאחראי.ת האקדמי.ת ותאריך התזכורת האחרונה.
+                        </p>
+                        <Badge variant="outline">{pendingRegistrations.length} בקשות ממתינות</Badge>
+                        <Button
+                            className="w-full"
+                            variant="outline"
+                            onClick={exportPendingRegistrations}
+                            disabled={pendingRegistrations.length === 0}
+                        >
+                            ייצוא בקשות ממתינות
                         </Button>
                     </CardContent>
                 </Card>

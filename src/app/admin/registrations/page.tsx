@@ -25,6 +25,7 @@ export default function AdminRegistrationsPage() {
     const [editReg, setEditReg] = useState<Registration | null>(null);
     const [editData, setEditData] = useState<Partial<Registration>>({});
     const [saving, setSaving] = useState(false);
+    const [reminding, setReminding] = useState<string | null>(null);
 
     const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
@@ -101,6 +102,24 @@ export default function AdminRegistrationsPage() {
         }
     };
 
+    const handleRemind = async (reg: Registration) => {
+        if (!confirm(`לשלוח תזכורת למנחה ולאחראי.ת האקדמי.ת בנוגע להרשמת "${reg.student1_name}"?`)) return;
+        setReminding(reg.id);
+        try {
+            const res = await fetch(`/api/admin/registrations/${reg.id}/remind`, { method: "POST" });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error);
+            }
+            toast.success("תזכורת נשלחה");
+            loadRegistrations();
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת התזכורת");
+        } finally {
+            setReminding(null);
+        }
+    };
+
     const handleDelete = async (reg: Registration) => {
         const isApproved = reg.status === "approved";
         const msg = isApproved
@@ -164,6 +183,17 @@ export default function AdminRegistrationsPage() {
                                             🔓
                                         </Button>
                                     )}
+                                    {r.status === "pending" && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            title="שלח תזכורת"
+                                            disabled={reminding === r.id}
+                                            onClick={() => handleRemind(r)}
+                                        >
+                                            🔔
+                                        </Button>
+                                    )}
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -194,6 +224,11 @@ export default function AdminRegistrationsPage() {
                             <div className="text-xs text-muted-foreground">
                                 {new Date(r.created_at).toLocaleDateString("he-IL")}
                             </div>
+                            {r.reminder_count > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                    תזכורת אחרונה: {r.last_reminder_sent_at ? new Date(r.last_reminder_sent_at).toLocaleDateString("he-IL") : "—"} ({r.reminder_count})
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 ))}
@@ -239,6 +274,11 @@ export default function AdminRegistrationsPage() {
                                     <span className={`text-xs px-2 py-1 rounded-full ${statusColors[r.status] || ""}`}>
                                         {r.status}
                                     </span>
+                                    {r.reminder_count > 0 && (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            תזכורת אחרונה: {r.last_reminder_sent_at ? new Date(r.last_reminder_sent_at).toLocaleDateString("he-IL") : "—"} ({r.reminder_count})
+                                        </div>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                     {new Date(r.created_at).toLocaleDateString("he-IL")}
@@ -253,6 +293,17 @@ export default function AdminRegistrationsPage() {
                                                 onClick={() => handleFree(r)}
                                             >
                                                 🔓
+                                            </Button>
+                                        )}
+                                        {r.status === "pending" && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                title="שלח תזכורת"
+                                                disabled={reminding === r.id}
+                                                onClick={() => handleRemind(r)}
+                                            >
+                                                🔔
                                             </Button>
                                         )}
                                         <Button
