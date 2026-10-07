@@ -109,6 +109,8 @@ export interface Project {
     edit_token: string;
     is_taken: boolean;
     academic_year_id: string | null;
+    prep_report_submitted: boolean;
+    prep_report_marked_at: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -150,6 +152,125 @@ export type PublicSafeProject = Pick<
     | "relevant_required_course_1" | "relevant_required_course_2"
     | "prereq_course_1" | "prereq_course_2" | "references_text"
 >;
+
+export const GRADE_COMPONENT_KEYS = [
+    "prep_report", "objectives", "teamwork", "project_book",
+    "mid_advisor", "mid_judges", "final_advisor", "final_judges",
+] as const;
+
+export type GradeComponentKey = (typeof GRADE_COMPONENT_KEYS)[number];
+
+// Every grading form is now a fixed set of plain 1-100 fields — there is
+// no rubric/criteria mechanism anymore. mid_presentation and
+// final_presentation are the only two forms; the former third form
+// (book/team/objectives) was retired and folded into the academic
+// advisor's final_presentation form (see isAdvisorFinalCombinedForm).
+export const RUBRIC_TEMPLATE_KEYS = ["mid_presentation", "final_presentation"] as const;
+export type RubricTemplateKey = (typeof RUBRIC_TEMPLATE_KEYS)[number];
+
+export type GradingRole = "judge" | "academic_advisor";
+export type GradingInviteStatus = "pending" | "submitted";
+
+// The academic advisor's final_presentation invite is the one combined
+// form: the presentation score itself plus teamwork/project_book/
+// objectives, each shown with its live weight_percent. Every other
+// (template, role) pair is a single plain score field with no weight
+// shown.
+export function isAdvisorFinalCombinedForm(templateKey: RubricTemplateKey, role: GradingRole): boolean {
+    return templateKey === "final_presentation" && role === "academic_advisor";
+}
+
+// The (template, role) pair alone determines which presentation-round
+// grade component a single-score invite's score counts toward.
+export function roundComponentKey(templateKey: RubricTemplateKey, role: GradingRole): GradeComponentKey {
+    if (templateKey === "mid_presentation") return role === "academic_advisor" ? "mid_advisor" : "mid_judges";
+    return role === "academic_advisor" ? "final_advisor" : "final_judges";
+}
+
+// One persistent, non-expiring portal token per academic advisor email —
+// lets them manage judge assignments across all of their own projects.
+export interface AdvisorLink {
+    id: string;
+    academic_supervisor_email: string;
+    academic_supervisor_name: string;
+    token: string;
+    created_by_email: string;
+    created_at: string;
+}
+
+// Which roles are allowed to fill each form — drives the "role" choice
+// when an admin sends/creates a grading invite.
+export const RUBRIC_TEMPLATE_ROLES: Record<RubricTemplateKey, GradingRole[]> = {
+    mid_presentation: ["academic_advisor", "judge"],
+    final_presentation: ["academic_advisor", "judge"],
+};
+
+export const GRADING_ROLE_LABELS: Record<GradingRole, string> = {
+    judge: "שופט/ת",
+    academic_advisor: "אחראי.ת אקדמי.ת",
+};
+
+// Default weights (must sum to 100), used to seed a new academic year when
+// no prior year's weights are available to copy.
+export const GRADE_COMPONENT_DEFAULTS: {
+    key: GradeComponentKey;
+    label_he: string;
+    weight_percent: number;
+    sort_order: number;
+}[] = [
+    { key: "prep_report", label_he: 'דו"ח מכין', weight_percent: 5, sort_order: 0 },
+    { key: "objectives", label_he: "עמידה ביעדים", weight_percent: 19, sort_order: 1 },
+    { key: "teamwork", label_he: "עבודת צוות", weight_percent: 19, sort_order: 2 },
+    { key: "project_book", label_he: "ספר פרויקט", weight_percent: 19, sort_order: 3 },
+    { key: "mid_advisor", label_he: "ניקוד א. אקדמי על מצגת אמצע", weight_percent: 9, sort_order: 4 },
+    { key: "mid_judges", label_he: "ניקוד שופטים על מצגת אמצע", weight_percent: 5, sort_order: 5 },
+    { key: "final_advisor", label_he: "ניקוד א. אקדמי על מצגת סיום", weight_percent: 9, sort_order: 6 },
+    { key: "final_judges", label_he: "ניקוד שופטים על מצגת סיום", weight_percent: 15, sort_order: 7 },
+];
+
+export interface GradeComponent {
+    id: string;
+    academic_year_id: string;
+    key: GradeComponentKey;
+    label_he: string;
+    weight_percent: number;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface RubricTemplate {
+    id: string;
+    key: RubricTemplateKey;
+    label_he: string;
+}
+
+export interface GradingInvite {
+    id: string;
+    project_id: string;
+    rubric_template_id: string;
+    role: GradingRole;
+    token: string;
+    recipient_email: string | null;
+    recipient_name: string | null;
+    admin_note: string | null;
+    created_by_email: string;
+    status: GradingInviteStatus;
+    // The presentation score itself (mid_advisor/mid_judges/final_advisor/
+    // final_judges depending on template+role).
+    score: number | null;
+    // Only populated on the academic advisor's final_presentation invite —
+    // see isAdvisorFinalCombinedForm.
+    teamwork_score: number | null;
+    project_book_score: number | null;
+    objectives_score: number | null;
+    invite_sent_at: string | null;
+    deliverables_on_time: boolean | null;
+    submitted_at: string | null;
+    reminder_count: number;
+    last_reminder_sent_at: string | null;
+    created_at: string;
+}
 
 export interface Registration {
     id: string;
