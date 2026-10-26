@@ -18,7 +18,12 @@ export async function POST(
 
         const { data: project, error } = await supabase
             .from("projects")
-            .update({ review_notes: notes, status: "review" })
+            .update({
+                review_notes: notes,
+                status: "review",
+                review_reminder_count: 0,
+                last_review_reminder_sent_at: null,
+            })
             .eq("id", id)
             .select()
             .single();

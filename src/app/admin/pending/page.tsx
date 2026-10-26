@@ -35,6 +35,7 @@ export default function PendingProjectsPage() {
     const [editProject, setEditProject] = useState<Project | null>(null);
     const [editData, setEditData] = useState<Partial<Project>>({});
     const [saving, setSaving] = useState(false);
+    const [reminding, setReminding] = useState<string | null>(null);
 
     const { selectedYear } = useAdminYear();
     const supabase = createSupabaseBrowserClient();
@@ -75,6 +76,24 @@ export default function PendingProjectsPage() {
             toast.error("שגיאה בשליחת ההערות");
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleRemind = async (project: Project) => {
+        if (!confirm(`לשלוח תזכורת לאחראי.ת האקדמי.ת לתיקון ההצעה "${project.title_he}"?`)) return;
+        setReminding(project.id);
+        try {
+            const res = await fetch(`/api/admin/projects/${project.id}/remind`, { method: "POST" });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error);
+            }
+            toast.success("תזכורת נשלחה");
+            loadProjects();
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת התזכורת");
+        } finally {
+            setReminding(null);
         }
     };
 
@@ -184,6 +203,11 @@ export default function PendingProjectsPage() {
                                         {project.status === "review" ? "ממתין לתיקון" : "ממתין לבדיקה"}
                                     </Badge>
                                 </div>
+                                {project.status === "review" && project.review_reminder_count > 0 && (
+                                    <div className="text-xs text-muted-foreground">
+                                        תזכורת אחרונה: {project.last_review_reminder_sent_at ? new Date(project.last_review_reminder_sent_at).toLocaleDateString("he-IL") : "—"} ({project.review_reminder_count})
+                                    </div>
+                                )}
                             </div>
                             <span className="text-muted-foreground text-sm">
                                 {new Date(project.created_at).toLocaleDateString("he-IL")}
@@ -247,6 +271,15 @@ export default function PendingProjectsPage() {
                                 >
                                     📝 שליחת הערות
                                 </Button>
+                                {project.status === "review" && (
+                                    <Button
+                                        variant="outline"
+                                        disabled={reminding === project.id}
+                                        onClick={() => handleRemind(project)}
+                                    >
+                                        🔔 תזכורת לתיקון
+                                    </Button>
+                                )}
                                 <Button
                                     variant="outline"
                                     onClick={() => { setEditProject(project); setEditData(project); }}

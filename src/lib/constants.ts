@@ -106,6 +106,8 @@ export interface Project {
     references_text: string;
     ai_complexity_justification: string | null;
     review_notes: string | null;
+    review_reminder_count: number;
+    last_review_reminder_sent_at: string | null;
     edit_token: string;
     is_taken: boolean;
     academic_year_id: string | null;
