@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { InviteScoreForm } from "@/components/score-fields-form";
 import { useAdminYear } from "@/app/admin/year-context";
-import { SendRoundButton, SendAdvisorLinksButton, FormPreviewButton } from "@/app/admin/grades/grading-actions";
+import { SendRoundButton, SendAdvisorLinksButton, FormPreviewButton, RoundReminders } from "@/app/admin/grades/grading-actions";
 import {
     GRADE_COMPONENT_DEFAULTS,
     RUBRIC_TEMPLATE_KEYS,
@@ -55,6 +55,8 @@ export default function AdminGradesPage() {
     const [search, setSearch] = useState("");
     const [adminEmail, setAdminEmail] = useState("");
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    // Bumped whenever links are sent so each step's submission badge refetches.
+    const [roundStatusVersion, setRoundStatusVersion] = useState(0);
 
     useEffect(() => {
         if (DEV_ADMIN) {
@@ -144,7 +146,13 @@ export default function AdminGradesPage() {
                     </WorkflowStep>
                     {RUBRIC_TEMPLATE_KEYS.map((key, i) => (
                         <WorkflowStep key={key} number={i + 2} title={RUBRIC_TEMPLATE_LABELS[key]} description={STEP_DESCRIPTIONS[key]}>
-                            <SendRoundButton templateKey={key} yearSlug={selectedYear?.slug ?? null} adminEmail={adminEmail} onSent={loadSummary} />
+                            <SendRoundButton
+                                templateKey={key}
+                                yearSlug={selectedYear?.slug ?? null}
+                                adminEmail={adminEmail}
+                                onSent={() => { loadSummary(); setRoundStatusVersion((v) => v + 1); }}
+                            />
+                            <RoundReminders templateKey={key} yearSlug={selectedYear?.slug ?? null} refreshKey={roundStatusVersion} />
                             <FormPreviewButton kind={key} weights={weights} />
                         </WorkflowStep>
                     ))}
@@ -220,9 +228,9 @@ export default function AdminGradesPage() {
 }
 
 const STEP_DESCRIPTIONS: Record<RubricTemplateKey, string> = {
-    mid_presentation: "אחרי מצגות האמצע: נשלח קישור לטופס ציון (ציון אחד, 1-100) לאחראי.ת האקדמי.ת של כל פרויקט ולכל שופט/ת ששובץ/ה. קישורים שכבר נשלחו לא יישלחו שוב.",
-    final_presentation: "אחרי מצגות הסיום: נשלח קישור לטופס ציון (ציון אחד, 1-100) לאחראי.ת האקדמי.ת של כל פרויקט ולכל שופט/ת ששובץ/ה. קישורים שכבר נשלחו לא יישלחו שוב.",
-    book_team_objectives: 'לאחראים האקדמיים בלבד: טופס נפרד לציון ספר הפרויקט, עבודת הצוות והעמידה ביעדים (כל רכיב מוצג עם משקלו בציון הסופי), כולל הצהרה שכל התוצרים הוגשו בזמן (דו"ח מכין).',
+    mid_presentation: "אחרי מצגות האמצע: נשלח קישור לטופס ציון (ציון אחד, 1-100) לאחראי.ת האקדמי.ת של כל פרויקט ולכל שופט/ת ששובץ/ה. ניתן ללחוץ שוב בהמשך (למשל אחרי ששובצו שופטים נוספים) — יישלחו רק הקישורים שטרם נשלחו, ללא מיילים כפולים.",
+    final_presentation: "אחרי מצגות הסיום: נשלח קישור לטופס ציון (ציון אחד, 1-100) לאחראי.ת האקדמי.ת של כל פרויקט ולכל שופט/ת ששובץ/ה. ניתן ללחוץ שוב בהמשך (למשל אחרי ששובצו שופטים נוספים) — יישלחו רק הקישורים שטרם נשלחו, ללא מיילים כפולים.",
+    book_team_objectives: 'לאחראים האקדמיים בלבד: טופס נפרד לציון ספר הפרויקט, עבודת הצוות והעמידה ביעדים (כל רכיב מוצג עם משקלו בציון הסופי), כולל הצהרה שכל התוצרים הוגשו בזמן.',
 };
 
 function WorkflowStep({

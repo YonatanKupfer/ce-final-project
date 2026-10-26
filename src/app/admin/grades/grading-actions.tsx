@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -101,6 +102,154 @@ export function SendRoundButton({
                     ) : (
                         <p className="text-sm text-destructive">שגיאה בטעינת התצוגה המקדימה</p>
                     )}
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+interface RoundStatus {
+    total: number;
+    submitted: number;
+    pending: number;
+    pending_unsent: number;
+    cooldown_hours: number;
+    recipients: {
+        email: string;
+        name: string | null;
+        last_reminder_sent_at: string | null;
+        eligible: boolean;
+        invites: { id: string; role: GradingRole; project_number: number | null; title_he: string; reminder_count: number }[];
+    }[];
+}
+
+// Progress badge + "remind everyone who hasn't submitted" for one form.
+// Reminders go out as one combined email per recipient, skipping anyone
+// reminded within the server's cooldown window.
+export function RoundReminders({
+    templateKey,
+    yearSlug,
+    refreshKey,
+}: {
+    templateKey: RubricTemplateKey;
+    yearSlug: string | null;
+    refreshKey: number;
+}) {
+    const [status, setStatus] = useState<RoundStatus | null>(null);
+    const [open, setOpen] = useState(false);
+    const [sending, setSending] = useState(false);
+
+    const loadStatus = useCallback(async () => {
+        if (!yearSlug) return;
+        try {
+            const res = await fetch(`/api/admin/grading/remind-round/${templateKey}?year=${yearSlug}`);
+            setStatus(res.ok ? await res.json() : null);
+        } catch {
+            setStatus(null);
+        }
+    }, [templateKey, yearSlug]);
+
+    useEffect(() => {
+        loadStatus();
+    }, [loadStatus, refreshKey]);
+
+    const handleOpen = () => {
+        setOpen(true);
+        loadStatus();
+    };
+
+    const handleConfirm = async () => {
+        if (!yearSlug) return;
+        setSending(true);
+        try {
+            const res = await fetch(`/api/admin/grading/remind-round/${templateKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ year: yearSlug }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body?.error);
+            toast.success(
+                `נשלחו תזכורות ל-${body.reminded} נמענים` +
+                (body.skipped_recent ? ` (${body.skipped_recent} דולגו — קיבלו תזכורת לאחרונה)` : "") +
+                (body.failed?.length ? `, ${body.failed.length} נכשלו` : "")
+            );
+            setOpen(false);
+            loadStatus();
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת התזכורות");
+        } finally {
+            setSending(false);
+        }
+    };
+
+    if (!status || status.total === 0) return null;
+
+    const eligible = status.recipients.filter((r) => r.eligible);
+    const eligibleForms = eligible.reduce((sum, r) => sum + r.invites.length, 0);
+    const allDone = status.submitted === status.total;
+
+    return (
+        <>
+            <Badge variant={allDone ? "default" : "outline"}>
+                {status.submitted}/{status.total} הוגשו
+            </Badge>
+            {status.recipients.length > 0 && (
+                <Button size="sm" variant="outline" onClick={handleOpen}>
+                    🔔 תזכורת ({status.recipients.length})
+                </Button>
+            )}
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent dir="rtl" className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>טפסים שטרם הוגשו — {RUBRIC_TEMPLATE_LABELS[templateKey]}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            הוגשו {status.submitted} מתוך {status.total} טפסים. כל נמען/ת יקבל/תקבל מייל אחד שמרכז את כל הטפסים
+                            הממתינים שלו/ה, עם קישור נפרד לכל פרויקט. מי שקיבל/ה תזכורת ב-{status.cooldown_hours} השעות
+                            האחרונות ידולג/תדולג.
+                        </p>
+                        {status.pending_unsent > 0 && (
+                            <p className="text-sm rounded-md border border-dashed px-3 py-2 text-muted-foreground">
+                                {status.pending_unsent} טפסים נוספים טרם נשלחו כלל (או שאין להם כתובת מייל) — הם לא נכללים בתזכורת.
+                                לשליחתם יש להשתמש ב&quot;שליחת קישורי ציון&quot;.
+                            </p>
+                        )}
+                        <div className="rounded-lg border divide-y">
+                            {status.recipients.map((r) => (
+                                <div key={r.email} className={`px-3 py-2 text-sm space-y-1 ${r.eligible ? "" : "opacity-60"}`}>
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <div>
+                                            <span className="font-medium">{r.name || r.email}</span>
+                                            {r.name && <span className="text-muted-foreground" dir="ltr"> · {r.email}</span>}
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">
+                                            {r.last_reminder_sent_at
+                                                ? `תזכורת אחרונה: ${new Date(r.last_reminder_sent_at).toLocaleDateString("he-IL")}`
+                                                : "טרם נשלחה תזכורת"}
+                                            {!r.eligible && " · ידולג"}
+                                        </span>
+                                    </div>
+                                    <ul className="text-muted-foreground space-y-0.5">
+                                        {r.invites.map((inv) => (
+                                            <li key={inv.id}>
+                                                {inv.project_number ? `#${inv.project_number} ` : ""}{inv.title_he}
+                                                <span className="text-xs"> · {GRADING_ROLE_LABELS[inv.role]}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                        <Button onClick={handleConfirm} disabled={sending || eligible.length === 0} className="w-full">
+                            {sending
+                                ? "שולח..."
+                                : eligible.length === 0
+                                    ? "כל הנמענים קיבלו תזכורת לאחרונה"
+                                    : `שליחת תזכורת ל-${eligible.length} נמענים (${eligibleForms} טפסים)`}
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </>

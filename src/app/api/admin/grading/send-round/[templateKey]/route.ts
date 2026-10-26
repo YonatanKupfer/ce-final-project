@@ -1,25 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
-import { RUBRIC_TEMPLATE_KEYS, RUBRIC_TEMPLATE_LABELS, GRADING_ROLE_LABELS, type RubricTemplateKey } from "@/lib/constants";
-
-async function resolveYearId(supabase: ReturnType<typeof getAdminClient>, yearSlug: string | null) {
-    if (yearSlug) {
-        const { data } = await supabase.from("academic_years").select("id").eq("slug", yearSlug).maybeSingle();
-        return data?.id ?? null;
-    }
-    const { data } = await supabase.from("academic_years").select("id").eq("is_active", true).maybeSingle();
-    return data?.id ?? null;
-}
-
-function isValidTemplateKey(key: string): key is RubricTemplateKey {
-    return (RUBRIC_TEMPLATE_KEYS as readonly string[]).includes(key);
-}
-
-async function resolveTemplateId(supabase: ReturnType<typeof getAdminClient>, templateKey: RubricTemplateKey) {
-    const { data } = await supabase.from("rubric_templates").select("id").eq("key", templateKey).maybeSingle();
-    return data?.id ?? null;
-}
+import { RUBRIC_TEMPLATE_LABELS, GRADING_ROLE_LABELS } from "@/lib/constants";
+import { resolveYearId, resolveTemplateId, isValidTemplateKey } from "@/lib/grading-server";
 
 // Dry-run preview for the admin confirm dialog before actually emailing
 // anyone — counts what a POST to this same route would do.
