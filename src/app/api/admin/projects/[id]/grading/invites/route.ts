@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
 import { gradingInviteCreateSchema } from "@/lib/validations";
+import { RUBRIC_TEMPLATE_ROLES, RUBRIC_TEMPLATE_LABELS, GRADING_ROLE_LABELS } from "@/lib/constants";
 
 export async function GET(
     request: NextRequest,
@@ -34,6 +35,9 @@ export async function POST(
             return NextResponse.json({ error: parsed.error.issues[0]?.message || "נתונים לא תקינים" }, { status: 400 });
         }
         const { rubric_template_key, role, recipient_email, recipient_name, admin_note, created_by_email } = parsed.data;
+        if (!RUBRIC_TEMPLATE_ROLES[rubric_template_key].includes(role)) {
+            return NextResponse.json({ error: "תפקיד זה אינו ממלא את הטופס הזה" }, { status: 400 });
+        }
 
         const supabase = getAdminClient();
 
@@ -80,7 +84,7 @@ export async function POST(
         if (recipient_email) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
             const link = `${appUrl}/grade/${invite.token}`;
-            const roleLabel = role === "judge" ? "שופט/ת" : "אחראי.ת אקדמי.ת";
+            const roleLabel = GRADING_ROLE_LABELS[role];
 
             await sendEmail({
                 to: recipient_email,
@@ -88,7 +92,7 @@ export async function POST(
                 html: wrapEmailHtml(`
           <h2>בקשה למתן ציון</h2>
           <p>שלום${recipient_name ? ` ${recipient_name}` : ""},</p>
-          <p>מתבקש/ת למלא ציון (בתפקיד ${roleLabel}) עבור פרויקט הגמר הבא:</p>
+          <p>מתבקש/ת למלא ציון (בתפקיד ${roleLabel}) עבור ${RUBRIC_TEMPLATE_LABELS[rubric_template_key]} של פרויקט הגמר הבא:</p>
           <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
             <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px;">${project.project_number ?? "—"}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט:</td><td style="padding: 8px;">${project.title_he}</td></tr>

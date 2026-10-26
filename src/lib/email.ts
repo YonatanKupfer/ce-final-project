@@ -43,3 +43,29 @@ export function wrapEmailHtml(body: string, rtl = true) {
     </html>
   `;
 }
+
+// The academic advisor's judge-assignment portal invitation — spells out
+// exactly what to click, since assigning a judge does NOT email them (the
+// admin's per-round send action does that later).
+export function advisorPortalEmail(advisorName: string, portalLink: string) {
+    return {
+        subject: "נדרשת פעולה: שיבוץ שופטים לפרויקטים שבאחריותך",
+        html: wrapEmailHtml(`
+        <h2>שיבוץ שופטים לפרויקטים שבאחריותך</h2>
+        <p>שלום ${advisorName},</p>
+        <p>לקראת מצגות האמצע והסיום, נבקש לשבץ שופט/ת לכל אחד מהפרויקטים שבאחריותך.</p>
+        <p style="font-weight: bold; margin-bottom: 4px;">מה צריך לעשות?</p>
+        <ol style="margin-top: 0; padding-right: 20px;">
+          <li>ללחוץ על הכפתור "מעבר לשיבוץ שופטים" שלמטה.</li>
+          <li>בעמוד שייפתח מופיעים כל הפרויקטים שבאחריותך, ולכל פרויקט אזור נפרד למצגת האמצע ולמצגת הסיום.</li>
+          <li>בכל אזור, לבחור שופט/ת מהרשימה (או "אחר" להזנת שם ואימייל) וללחוץ "הוספת שופט/ת". השיבוץ נשמר מיד — אין צורך בשליחה נוספת.</li>
+        </ol>
+        <p>
+          <a href="${portalLink}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+            מעבר לשיבוץ שופטים
+          </a>
+        </p>
+        <p style="color: #888; font-size: 13px; margin-top: 24px;">השופטים לא יקבלו מייל בשלב זה — לאחר כל מצגת, צוות הקורס ישלח להם קישור למתן ציון. ניתן לחזור לקישור זה בכל עת כדי לעדכן את השיבוץ.</p>
+      `),
+    };
+}

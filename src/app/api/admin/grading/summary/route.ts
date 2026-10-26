@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import {
     GRADE_COMPONENT_KEYS,
-    isAdvisorFinalCombinedForm,
+    isBookTeamObjectivesForm,
+    isPresentationRound,
     roundComponentKey,
     type GradeComponentKey,
     type GradingRole,
@@ -88,8 +89,10 @@ export async function GET(request: NextRequest) {
     for (const inv of invites || []) {
         const template = Array.isArray(inv.rubric_template) ? inv.rubric_template[0] : inv.rubric_template;
         if (!template) continue;
-        if (inv.score !== null) addScore(inv.project_id, roundComponentKey(template.key, inv.role), inv.score);
-        if (isAdvisorFinalCombinedForm(template.key, inv.role)) {
+        if (isPresentationRound(template.key) && inv.score !== null) {
+            addScore(inv.project_id, roundComponentKey(template.key, inv.role), inv.score);
+        }
+        if (isBookTeamObjectivesForm(template.key)) {
             if (inv.teamwork_score !== null) addScore(inv.project_id, "teamwork", inv.teamwork_score);
             if (inv.project_book_score !== null) addScore(inv.project_id, "project_book", inv.project_book_score);
             if (inv.objectives_score !== null) addScore(inv.project_id, "objectives", inv.objectives_score);

@@ -162,29 +162,40 @@ export const GRADE_COMPONENT_KEYS = [
 
 export type GradeComponentKey = (typeof GRADE_COMPONENT_KEYS)[number];
 
-// Every grading form is now a fixed set of plain 1-100 fields — there is
-// no rubric/criteria mechanism anymore. mid_presentation and
-// final_presentation are the only two forms; the former third form
-// (book/team/objectives) was retired and folded into the academic
-// advisor's final_presentation form (see isAdvisorFinalCombinedForm).
-export const RUBRIC_TEMPLATE_KEYS = ["mid_presentation", "final_presentation"] as const;
+// Every grading form is a fixed set of plain 1-100 fields — there is no
+// rubric/criteria mechanism. The two presentation rounds are a single
+// score field for every role (advisor and judges alike);
+// book_team_objectives is the separate advisor-only form for the
+// remaining components (see isBookTeamObjectivesForm).
+export const PRESENTATION_ROUND_KEYS = ["mid_presentation", "final_presentation"] as const;
+export type PresentationRoundKey = (typeof PRESENTATION_ROUND_KEYS)[number];
+
+export const RUBRIC_TEMPLATE_KEYS = [...PRESENTATION_ROUND_KEYS, "book_team_objectives"] as const;
 export type RubricTemplateKey = (typeof RUBRIC_TEMPLATE_KEYS)[number];
+
+export const RUBRIC_TEMPLATE_LABELS: Record<RubricTemplateKey, string> = {
+    mid_presentation: "מצגת אמצע",
+    final_presentation: "מצגת סיום",
+    book_team_objectives: "ספר פרויקט, עבודת צוות ועמידה ביעדים",
+};
 
 export type GradingRole = "judge" | "academic_advisor";
 export type GradingInviteStatus = "pending" | "submitted";
 
-// The academic advisor's final_presentation invite is the one combined
-// form: the presentation score itself plus teamwork/project_book/
-// objectives, each shown with its live weight_percent. Every other
-// (template, role) pair is a single plain score field with no weight
-// shown.
-export function isAdvisorFinalCombinedForm(templateKey: RubricTemplateKey, role: GradingRole): boolean {
-    return templateKey === "final_presentation" && role === "academic_advisor";
+// The advisor-only form for teamwork/project_book/objectives, each shown
+// with its live weight_percent, plus the "deliverables submitted on time"
+// declaration. Every other form is a single plain score field.
+export function isBookTeamObjectivesForm(templateKey: RubricTemplateKey): boolean {
+    return templateKey === "book_team_objectives";
 }
 
-// The (template, role) pair alone determines which presentation-round
+export function isPresentationRound(templateKey: RubricTemplateKey): templateKey is PresentationRoundKey {
+    return (PRESENTATION_ROUND_KEYS as readonly string[]).includes(templateKey);
+}
+
+// The (round, role) pair alone determines which presentation-round
 // grade component a single-score invite's score counts toward.
-export function roundComponentKey(templateKey: RubricTemplateKey, role: GradingRole): GradeComponentKey {
+export function roundComponentKey(templateKey: PresentationRoundKey, role: GradingRole): GradeComponentKey {
     if (templateKey === "mid_presentation") return role === "academic_advisor" ? "mid_advisor" : "mid_judges";
     return role === "academic_advisor" ? "final_advisor" : "final_judges";
 }
@@ -205,6 +216,7 @@ export interface AdvisorLink {
 export const RUBRIC_TEMPLATE_ROLES: Record<RubricTemplateKey, GradingRole[]> = {
     mid_presentation: ["academic_advisor", "judge"],
     final_presentation: ["academic_advisor", "judge"],
+    book_team_objectives: ["academic_advisor"],
 };
 
 export const GRADING_ROLE_LABELS: Record<GradingRole, string> = {
@@ -261,13 +273,15 @@ export interface GradingInvite {
     // The presentation score itself (mid_advisor/mid_judges/final_advisor/
     // final_judges depending on template+role).
     score: number | null;
-    // Only populated on the academic advisor's final_presentation invite —
-    // see isAdvisorFinalCombinedForm.
+    // Only populated on book_team_objectives invites — see
+    // isBookTeamObjectivesForm.
     teamwork_score: number | null;
     project_book_score: number | null;
     objectives_score: number | null;
     invite_sent_at: string | null;
     deliverables_on_time: boolean | null;
+    // Optional free-text comments submitted alongside the score(s).
+    comments: string | null;
     submitted_at: string | null;
     reminder_count: number;
     last_reminder_sent_at: string | null;

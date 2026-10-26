@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
-import { sendEmail, wrapEmailHtml } from "@/lib/email";
+import { sendEmail, advisorPortalEmail } from "@/lib/email";
 
 // The one global "distribute links to every academic advisor" action:
 // for every distinct advisor with at least one approved+staffed project in
@@ -70,17 +70,7 @@ export async function POST(request: NextRequest) {
                 const portalLink = `${appUrl}/advisor/${token}`;
                 await sendEmail({
                     to: advisor.email,
-                    subject: "שיבוץ שופטים לפרויקטים שלך",
-                    html: wrapEmailHtml(`
-            <h2>שיבוץ שופטים לפרויקטים שלך</h2>
-            <p>שלום ${advisor.name},</p>
-            <p>באמצעות הקישור הבא ניתן לשבץ שופט/ת לכל אחד מהפרויקטים שבאחריותך, למצגת האמצע ולמצגת הסיום:</p>
-            <p>
-              <a href="${portalLink}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
-                מעבר לשיבוץ שופטים
-              </a>
-            </p>
-          `),
+                    ...advisorPortalEmail(advisor.name, portalLink),
                 });
                 sent += 1;
             } catch (err) {

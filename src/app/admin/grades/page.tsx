@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,14 +14,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ScoreFieldsForm } from "@/components/score-fields-form";
+import { InviteScoreForm } from "@/components/score-fields-form";
 import { useAdminYear } from "@/app/admin/year-context";
+import { SendRoundButton, SendAdvisorLinksButton, FormPreviewButton } from "@/app/admin/grades/grading-actions";
 import {
     GRADE_COMPONENT_DEFAULTS,
     RUBRIC_TEMPLATE_KEYS,
+    RUBRIC_TEMPLATE_LABELS,
     RUBRIC_TEMPLATE_ROLES,
     GRADING_ROLE_LABELS,
-    isAdvisorFinalCombinedForm,
     type GradingInvite,
     type GradingRole,
     type RubricTemplateKey,
@@ -29,11 +30,6 @@ import {
 } from "@/lib/constants";
 
 const DEV_ADMIN = process.env.NEXT_PUBLIC_DEV_ADMIN === "true";
-
-const TEMPLATE_LABELS: Record<RubricTemplateKey, string> = {
-    mid_presentation: "מצגת אמצע",
-    final_presentation: "מצגת סיום",
-};
 
 interface SummaryRow {
     project_id: string;
@@ -121,18 +117,39 @@ export default function AdminGradesPage() {
                     <h1 className="text-2xl font-bold">ציונים</h1>
                     <p className="text-sm text-muted-foreground">ניהול ציוני הפרויקטים — {selectedYear?.label_he ?? ""}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    {RUBRIC_TEMPLATE_KEYS.map((key) => (
-                        <SendRoundButton key={key} templateKey={key} yearSlug={selectedYear?.slug ?? null} adminEmail={adminEmail} onSent={loadSummary} />
-                    ))}
-                    <Link href="/admin/grades/advisors">
-                        <Button variant="outline">🔗 קישורי אחראים אקדמיים</Button>
-                    </Link>
-                    <Link href="/admin/grades/settings">
-                        <Button variant="outline">⚙️ הגדרות ציונים</Button>
-                    </Link>
-                </div>
+                <Link href="/admin/grades/settings">
+                    <Button variant="outline">⚙️ הגדרות ציונים</Button>
+                </Link>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">שליחת טפסים — לפי סדר</CardTitle>
+                </CardHeader>
+                <CardContent className="divide-y">
+                    <WorkflowStep
+                        number={1}
+                        title="שיבוץ שופטים (לפני המצגות)"
+                        description="כל אחראי.ת אקדמי.ת מקבל/ת מייל עם קישור אישי לעמוד שבו משבצים שופטים לכל אחד מהפרויקטים שבאחריותו/ה, למצגת האמצע ולמצגת הסיום. השופטים עצמם לא מקבלים מייל בשלב זה."
+                    >
+                        <SendAdvisorLinksButton
+                            yearSlug={selectedYear?.slug ?? null}
+                            yearLabel={selectedYear?.label_he ?? ""}
+                            adminEmail={adminEmail}
+                        />
+                        <FormPreviewButton kind="advisor_portal" weights={weights} />
+                        <Link href="/admin/grades/advisors">
+                            <Button size="sm" variant="ghost">🔗 ניהול קישורים פרטני</Button>
+                        </Link>
+                    </WorkflowStep>
+                    {RUBRIC_TEMPLATE_KEYS.map((key, i) => (
+                        <WorkflowStep key={key} number={i + 2} title={RUBRIC_TEMPLATE_LABELS[key]} description={STEP_DESCRIPTIONS[key]}>
+                            <SendRoundButton templateKey={key} yearSlug={selectedYear?.slug ?? null} adminEmail={adminEmail} onSent={loadSummary} />
+                            <FormPreviewButton kind={key} weights={weights} />
+                        </WorkflowStep>
+                    ))}
+                </CardContent>
+            </Card>
 
             <Input
                 placeholder="חיפוש לפי שם פרויקט או סטודנט..."
@@ -202,85 +219,36 @@ export default function AdminGradesPage() {
     );
 }
 
-function SendRoundButton({
-    templateKey,
-    yearSlug,
-    adminEmail,
-    onSent,
+const STEP_DESCRIPTIONS: Record<RubricTemplateKey, string> = {
+    mid_presentation: "אחרי מצגות האמצע: נשלח קישור לטופס ציון (ציון אחד, 1-100) לאחראי.ת האקדמי.ת של כל פרויקט ולכל שופט/ת ששובץ/ה. קישורים שכבר נשלחו לא יישלחו שוב.",
+    final_presentation: "אחרי מצגות הסיום: נשלח קישור לטופס ציון (ציון אחד, 1-100) לאחראי.ת האקדמי.ת של כל פרויקט ולכל שופט/ת ששובץ/ה. קישורים שכבר נשלחו לא יישלחו שוב.",
+    book_team_objectives: 'לאחראים האקדמיים בלבד: טופס נפרד לציון ספר הפרויקט, עבודת הצוות והעמידה ביעדים (כל רכיב מוצג עם משקלו בציון הסופי), כולל הצהרה שכל התוצרים הוגשו בזמן (דו"ח מכין).',
+};
+
+function WorkflowStep({
+    number,
+    title,
+    description,
+    children,
 }: {
-    templateKey: RubricTemplateKey;
-    yearSlug: string | null;
-    adminEmail: string;
-    onSent: () => void;
+    number: number;
+    title: string;
+    description: string;
+    children: React.ReactNode;
 }) {
-    const [open, setOpen] = useState(false);
-    const [loadingPreview, setLoadingPreview] = useState(false);
-    const [preview, setPreview] = useState<{ projects_count: number; advisors_to_send: number; judges_to_send: number } | null>(null);
-    const [sending, setSending] = useState(false);
-
-    const handleOpen = async () => {
-        if (!yearSlug) return;
-        setOpen(true);
-        setLoadingPreview(true);
-        setPreview(null);
-        try {
-            const res = await fetch(`/api/admin/grading/send-round/${templateKey}?year=${yearSlug}`);
-            const body = await res.json();
-            setPreview(body);
-        } finally {
-            setLoadingPreview(false);
-        }
-    };
-
-    const handleConfirm = async () => {
-        if (!yearSlug) return;
-        setSending(true);
-        try {
-            const res = await fetch(`/api/admin/grading/send-round/${templateKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ year: yearSlug, created_by_email: adminEmail }),
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body?.error);
-            toast.success(`נשלחו ${body.sent} קישורים (${body.already_sent_skipped} נשלחו בעבר)${body.failed?.length ? `, ${body.failed.length} נכשלו` : ""}`);
-            setOpen(false);
-            onSent();
-        } catch (err) {
-            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת הקישורים");
-        } finally {
-            setSending(false);
-        }
-    };
-
     return (
-        <>
-            <Button variant="outline" onClick={handleOpen}>
-                📤 שלח קישורי ציון ל{TEMPLATE_LABELS[templateKey]}
-            </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>שליחת קישורי ציון — {TEMPLATE_LABELS[templateKey]}</DialogTitle>
-                    </DialogHeader>
-                    {loadingPreview ? (
-                        <Skeleton className="h-24 w-full" />
-                    ) : preview ? (
-                        <div className="space-y-3">
-                            <p className="text-sm text-muted-foreground">
-                                בפרויקטים המאושרים ({preview.projects_count}): יישלחו {preview.advisors_to_send} קישורים לאחראים אקדמיים
-                                ו-{preview.judges_to_send} קישורים לשופטים שלא נשלח להם קישור עדיין.
-                            </p>
-                            <Button onClick={handleConfirm} disabled={sending} className="w-full">
-                                {sending ? "שולח..." : "אישור ושליחה"}
-                            </Button>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-destructive">שגיאה בטעינת התצוגה המקדימה</p>
-                    )}
-                </DialogContent>
-            </Dialog>
-        </>
+        <div className="flex flex-col md:flex-row md:items-center gap-3 py-3 first:pt-0 last:pb-0">
+            <div className="flex items-start gap-3 flex-1">
+                <span className="flex items-center justify-center size-7 shrink-0 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                    {number}
+                </span>
+                <div className="space-y-0.5">
+                    <p className="font-medium">{title}</p>
+                    <p className="text-sm text-muted-foreground">{description}</p>
+                </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap ps-10 md:ps-0">{children}</div>
+        </div>
     );
 }
 
@@ -446,7 +414,7 @@ function ProjectGradeDetail({
                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                     <div className="text-sm">
                                         <span className="font-medium">
-                                            {invite.rubric_template ? TEMPLATE_LABELS[invite.rubric_template.key] : ""}
+                                            {invite.rubric_template ? RUBRIC_TEMPLATE_LABELS[invite.rubric_template.key] : ""}
                                         </span>
                                         {" · "}
                                         <span>{GRADING_ROLE_LABELS[invite.role]}</span>
@@ -459,6 +427,12 @@ function ProjectGradeDetail({
                                         {invite.status === "submitted" ? "הוגש" : "ממתין"}
                                     </Badge>
                                 </div>
+                                {invite.comments && (
+                                    <div className="text-sm bg-muted/50 rounded-md px-3 py-2">
+                                        <span className="font-medium">הערות: </span>
+                                        <span className="whitespace-pre-wrap">{invite.comments}</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <Button
                                         size="sm"
@@ -483,32 +457,12 @@ function ProjectGradeDetail({
                                 </div>
                                 {editingInviteId === invite.id && (
                                     <div className="pt-2 border-t">
-                                        {invite.rubric_template && isAdvisorFinalCombinedForm(invite.rubric_template.key, invite.role) ? (
-                                            <ScoreFieldsForm
-                                                fields={[
-                                                    { key: "final_advisor", label: "ציון מצגת סיום", weightPercent: weights.final_advisor, initialValue: invite.score },
-                                                    { key: "teamwork", label: "עבודת צוות", weightPercent: weights.teamwork, initialValue: invite.teamwork_score },
-                                                    { key: "project_book", label: "ספר פרויקט", weightPercent: weights.project_book, initialValue: invite.project_book_score },
-                                                    { key: "objectives", label: "עמידה ביעדים", weightPercent: weights.objectives, initialValue: invite.objectives_score },
-                                                ]}
-                                                showDeliverablesCheckbox
-                                                initialDeliverablesOnTime={invite.deliverables_on_time}
-                                                onSubmit={(values, deliverablesOnTime) =>
-                                                    handleManualSubmit(invite.id, {
-                                                        final_advisor: values.final_advisor,
-                                                        teamwork: values.teamwork,
-                                                        project_book: values.project_book,
-                                                        objectives: values.objectives,
-                                                        deliverables_on_time: deliverablesOnTime,
-                                                    })
-                                                }
-                                                submitting={savingManual}
-                                                submitLabel="שמירת ציון"
-                                            />
-                                        ) : (
-                                            <ScoreFieldsForm
-                                                fields={[{ key: "score", label: "ציון (1-100)", initialValue: invite.score }]}
-                                                onSubmit={(values) => handleManualSubmit(invite.id, { score: values.score })}
+                                        {invite.rubric_template && (
+                                            <InviteScoreForm
+                                                templateKey={invite.rubric_template.key}
+                                                invite={invite}
+                                                weights={weights}
+                                                onSubmit={(body) => handleManualSubmit(invite.id, body)}
                                                 submitting={savingManual}
                                                 submitLabel="שמירת ציון"
                                             />
@@ -539,7 +493,7 @@ function ProjectGradeDetail({
                             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {RUBRIC_TEMPLATE_KEYS.map((k) => (
-                                    <SelectItem key={k} value={k}>{TEMPLATE_LABELS[k]}</SelectItem>
+                                    <SelectItem key={k} value={k}>{RUBRIC_TEMPLATE_LABELS[k]}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

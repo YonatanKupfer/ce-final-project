@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { TRACK_IDS, GRADE_COMPONENT_KEYS, RUBRIC_TEMPLATE_KEYS } from "@/lib/constants";
+import { TRACK_IDS, GRADE_COMPONENT_KEYS, RUBRIC_TEMPLATE_KEYS, PRESENTATION_ROUND_KEYS } from "@/lib/constants";
 
 export const projectFormSchema = z.object({
     title_he: z.string().min(1, "שדה חובה"),
@@ -62,31 +62,32 @@ export const gradingInviteCreateSchema = z.object({
 });
 
 const score1to100 = z.number().min(1, "הציון חייב להיות בין 1 ל-100").max(100, "הציון חייב להיות בין 1 ל-100");
+const gradingComments = z.string().max(5000, "ההערות ארוכות מדי").optional();
 
-// Holistic 1-100 score — used by every single-field form (judges on
-// either round, and the academic advisor's mid_presentation form).
+// Holistic 1-100 score — used by every presentation-round form (judges
+// and the academic advisor alike, on either round).
 export const judgeScoreSubmitSchema = z.object({
     score: score1to100,
+    comments: gradingComments,
 });
 
-// The academic advisor's combined final_presentation form: the
-// presentation score plus the three components folded in from the
-// retired book/team/objectives form, plus the advisor's own
-// "deliverables submitted on time" declaration (cascades to
+// The academic advisor's book_team_objectives form: the three
+// non-presentation components plus the advisor's own "deliverables
+// submitted on time" declaration (cascades to
 // projects.prep_report_submitted).
-export const advisorFinalScoreSubmitSchema = z.object({
-    final_advisor: score1to100,
+export const bookTeamObjectivesSubmitSchema = z.object({
     teamwork: score1to100,
     project_book: score1to100,
     objectives: score1to100,
     deliverables_on_time: z.boolean(),
+    comments: gradingComments,
 });
 
 // Advisor-portal judge assignment. role is always 'judge' and
 // created_by_email is derived server-side from the advisor_links token,
 // so this is intentionally narrower than gradingInviteCreateSchema.
 export const advisorJudgeAssignSchema = z.object({
-    rubric_template_key: z.enum(RUBRIC_TEMPLATE_KEYS),
+    rubric_template_key: z.enum(PRESENTATION_ROUND_KEYS),
     recipient_name: z.string().min(1, "שדה חובה"),
     recipient_email: z.string().email("כתובת אימייל לא תקינה"),
 });

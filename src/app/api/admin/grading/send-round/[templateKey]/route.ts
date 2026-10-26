@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
-import { RUBRIC_TEMPLATE_KEYS, GRADING_ROLE_LABELS, type RubricTemplateKey } from "@/lib/constants";
+import { RUBRIC_TEMPLATE_KEYS, RUBRIC_TEMPLATE_LABELS, GRADING_ROLE_LABELS, type RubricTemplateKey } from "@/lib/constants";
 
 async function resolveYearId(supabase: ReturnType<typeof getAdminClient>, yearSlug: string | null) {
     if (yearSlug) {
@@ -80,14 +80,15 @@ export async function GET(
     });
 }
 
-// The one global per-round button: for every approved project in the
+// The one global per-form button: for every approved project in the
 // year, ensures the advisor's own invite exists (auto-created from
 // projects.academic_supervisor_name/email — advisors never need to assign
-// themselves), then emails every invite for this round that hasn't been
+// themselves), then emails every invite for this form that hasn't been
 // emailed yet (advisor invite just ensured + any judges an advisor
-// assigned via the portal). invite_sent_at IS NULL is what makes clicking
-// this twice, or clicking it again after new judges were assigned, safe —
-// already-sent invites are simply skipped.
+// assigned via the portal — book_team_objectives never has judges).
+// invite_sent_at IS NULL is what makes clicking this twice, or clicking
+// it again after new judges were assigned, safe — already-sent invites
+// are simply skipped.
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ templateKey: string }> }
@@ -161,7 +162,7 @@ export async function POST(
 
         const projectById = new Map(projectList.map((p) => [p.id, p]));
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        const roundLabel = templateKey === "mid_presentation" ? "מצגת אמצע" : "מצגת סיום";
+        const roundLabel = RUBRIC_TEMPLATE_LABELS[templateKey];
 
         let sent = 0;
         const failed: { project_id: string; recipient_email: string | null; error: string }[] = [];

@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAdminYear } from "@/app/admin/year-context";
+import { SendAdvisorLinksButton, FormPreviewButton } from "@/app/admin/grades/grading-actions";
 
 const DEV_ADMIN = process.env.NEXT_PUBLIC_DEV_ADMIN === "true";
 
@@ -26,8 +26,6 @@ export default function AdvisorLinksPage() {
     const [advisors, setAdvisors] = useState<AdvisorRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [busyEmail, setBusyEmail] = useState<string | null>(null);
-    const [sendAllOpen, setSendAllOpen] = useState(false);
-    const [sendingAll, setSendingAll] = useState(false);
 
     useEffect(() => {
         if (DEV_ADMIN) {
@@ -100,55 +98,27 @@ export default function AdvisorLinksPage() {
         }
     };
 
-    const handleSendAll = async () => {
-        if (!selectedYear) return;
-        setSendingAll(true);
-        try {
-            const res = await fetch("/api/admin/grading/advisor-links/send-all", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ year: selectedYear.slug, created_by_email: adminEmail }),
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body?.error);
-            toast.success(`נשלחו קישורים ל-${body.sent} מתוך ${body.total} אחראים אקדמיים${body.failed?.length ? `, ${body.failed.length} נכשלו` : ""}`);
-            setSendAllOpen(false);
-            loadAdvisors();
-        } catch (err) {
-            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת הקישורים");
-        } finally {
-            setSendingAll(false);
-        }
-    };
-
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                     <h1 className="text-2xl font-bold">קישורי אחראים אקדמיים</h1>
                     <p className="text-sm text-muted-foreground">
-                        כל קישור מאפשר לאחראי האקדמי לשבץ שופט/ת לכל אחד מהפרויקטים שבאחריותו, למצגת האמצע ולמצגת הסיום.
+                        כל קישור מאפשר לאחראי.ת האקדמי.ת לשבץ שופט/ת לכל אחד מהפרויקטים שבאחריותו/ה, למצגת האמצע ולמצגת הסיום.
                     </p>
                 </div>
-                <Button variant="outline" onClick={() => setSendAllOpen(true)} disabled={loading || advisors.length === 0}>
-                    📤 שליחת קישור לכל האחראים
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <SendAdvisorLinksButton
+                        yearSlug={selectedYear?.slug ?? null}
+                        yearLabel={selectedYear?.label_he ?? ""}
+                        adminEmail={adminEmail}
+                        advisorCount={advisors.length}
+                        disabled={loading || advisors.length === 0}
+                        onSent={loadAdvisors}
+                    />
+                    <FormPreviewButton kind="advisor_portal" weights={{}} />
+                </div>
             </div>
-
-            <Dialog open={sendAllOpen} onOpenChange={setSendAllOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>שליחת קישור לכל האחראים האקדמיים</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        יישלח מייל לכל {advisors.length} האחראים האקדמיים עם פרויקט מאושר ומאויש בשנה הנבחרת
-                        ({selectedYear?.label_he ?? ""}), כולל למי שכבר קיבל קישור בעבר.
-                    </p>
-                    <Button onClick={handleSendAll} disabled={sendingAll} className="w-full">
-                        {sendingAll ? "שולח..." : "אישור ושליחה"}
-                    </Button>
-                </DialogContent>
-            </Dialog>
 
             {loading ? (
                 <Skeleton className="h-64 w-full" />

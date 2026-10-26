@@ -1,0 +1,330 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { GradeFormView, type GradeFormData } from "@/components/grade-form-view";
+import {
+    AdvisorPortalView,
+    type AdvisorPortalActions,
+    type AdvisorPortalData,
+    type AdvisorPortalProject,
+} from "@/components/advisor-portal-view";
+import {
+    TRACK_LIST,
+    RUBRIC_TEMPLATE_LABELS,
+    RUBRIC_TEMPLATE_ROLES,
+    GRADING_ROLE_LABELS,
+    isBookTeamObjectivesForm,
+    type GradingRole,
+    type RubricTemplateKey,
+    type GradeComponentKey,
+} from "@/lib/constants";
+
+export function SendRoundButton({
+    templateKey,
+    yearSlug,
+    adminEmail,
+    onSent,
+}: {
+    templateKey: RubricTemplateKey;
+    yearSlug: string | null;
+    adminEmail: string;
+    onSent: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+    const [preview, setPreview] = useState<{ projects_count: number; advisors_to_send: number; judges_to_send: number } | null>(null);
+    const [sending, setSending] = useState(false);
+    const advisorOnly = isBookTeamObjectivesForm(templateKey);
+
+    const handleOpen = async () => {
+        if (!yearSlug) return;
+        setOpen(true);
+        setLoadingPreview(true);
+        setPreview(null);
+        try {
+            const res = await fetch(`/api/admin/grading/send-round/${templateKey}?year=${yearSlug}`);
+            const body = await res.json();
+            setPreview(body);
+        } finally {
+            setLoadingPreview(false);
+        }
+    };
+
+    const handleConfirm = async () => {
+        if (!yearSlug) return;
+        setSending(true);
+        try {
+            const res = await fetch(`/api/admin/grading/send-round/${templateKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ year: yearSlug, created_by_email: adminEmail }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body?.error);
+            toast.success(`נשלחו ${body.sent} קישורים (${body.already_sent_skipped} נשלחו בעבר)${body.failed?.length ? `, ${body.failed.length} נכשלו` : ""}`);
+            setOpen(false);
+            onSent();
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת הקישורים");
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <>
+            <Button size="sm" onClick={handleOpen} disabled={!yearSlug}>
+                📤 שליחת קישורי ציון
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle>שליחת קישורי ציון — {RUBRIC_TEMPLATE_LABELS[templateKey]}</DialogTitle>
+                    </DialogHeader>
+                    {loadingPreview ? (
+                        <Skeleton className="h-24 w-full" />
+                    ) : preview ? (
+                        <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                                {advisorOnly
+                                    ? `בפרויקטים המאושרים (${preview.projects_count}): יישלחו ${preview.advisors_to_send} קישורים לאחראים אקדמיים.`
+                                    : `בפרויקטים המאושרים (${preview.projects_count}): יישלחו ${preview.advisors_to_send} קישורים לאחראים אקדמיים ו-${preview.judges_to_send} קישורים לשופטים שלא נשלח להם קישור עדיין.`}
+                            </p>
+                            <Button onClick={handleConfirm} disabled={sending} className="w-full">
+                                {sending ? "שולח..." : "אישור ושליחה"}
+                            </Button>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-destructive">שגיאה בטעינת התצוגה המקדימה</p>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+// Emails every academic advisor with an approved+staffed project in the
+// year their personal judge-assignment portal link.
+export function SendAdvisorLinksButton({
+    yearSlug,
+    yearLabel,
+    adminEmail,
+    advisorCount,
+    disabled,
+    onSent,
+}: {
+    yearSlug: string | null;
+    yearLabel: string;
+    adminEmail: string;
+    advisorCount?: number;
+    disabled?: boolean;
+    onSent?: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [sending, setSending] = useState(false);
+
+    const handleSendAll = async () => {
+        if (!yearSlug) return;
+        setSending(true);
+        try {
+            const res = await fetch("/api/admin/grading/advisor-links/send-all", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ year: yearSlug, created_by_email: adminEmail }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body?.error);
+            toast.success(`נשלחו קישורים ל-${body.sent} מתוך ${body.total} אחראים אקדמיים${body.failed?.length ? `, ${body.failed.length} נכשלו` : ""}`);
+            setOpen(false);
+            onSent?.();
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת הקישורים");
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <>
+            <Button size="sm" onClick={() => setOpen(true)} disabled={disabled || !yearSlug}>
+                📤 שליחת קישור שיבוץ לכל האחראים
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle>שליחת קישור שיבוץ שופטים לכל האחראים האקדמיים</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        יישלח מייל ל{advisorCount !== undefined ? `כל ${advisorCount}` : "כל"} האחראים האקדמיים עם פרויקט מאושר
+                        ומאויש בשנה הנבחרת ({yearLabel}), כולל למי שכבר קיבל קישור בעבר. המייל מסביר שיש ללחוץ על
+                        הקישור ולשבץ שופטים לכל פרויקט — השופטים עצמם לא מקבלים מייל בשלב זה.
+                    </p>
+                    <Button onClick={handleSendAll} disabled={sending} className="w-full">
+                        {sending ? "שולח..." : "אישור ושליחה"}
+                    </Button>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+export type PreviewKind = RubricTemplateKey | "advisor_portal";
+
+const SAMPLE_PROJECT: GradeFormData["project"] = {
+    project_number: 101,
+    title_he: "פרויקט לדוגמה",
+    title_en: "Sample Project",
+    track: TRACK_LIST[0].id,
+    supervisors_name: "שם המנחה",
+    academic_supervisor_name: "שם האחראי.ת האקדמי.ת",
+    abstract: "כאן יופיע תקציר הפרויקט כפי שהוגש בהצעה.",
+};
+
+const SAMPLE_KNOWN_ADVISORS = [
+    { name: "שופט/ת לדוגמה א", email: "judge.a@example.com" },
+    { name: "שופט/ת לדוגמה ב", email: "judge.b@example.com" },
+];
+
+function samplePortalData(): AdvisorPortalData {
+    const emptyRounds = () => ({ mid_presentation: { judges: [] }, final_presentation: { judges: [] } });
+    return {
+        advisor: { name: "שם האחראי.ת האקדמי.ת", email: "advisor@example.com" },
+        projects: [
+            { id: "sample-1", project_number: 101, title_he: "פרויקט לדוגמה א", title_en: "Sample Project A", rounds: emptyRounds() },
+            { id: "sample-2", project_number: 102, title_he: "פרויקט לדוגמה ב", title_en: "Sample Project B", rounds: emptyRounds() },
+        ],
+        knownAdvisors: SAMPLE_KNOWN_ADVISORS,
+    };
+}
+
+// Shows admins exactly what a recipient will see, filled with sample data.
+// Interactions work locally so the flow can be tried out, but nothing is
+// ever saved or emailed.
+export function FormPreviewButton({
+    kind,
+    weights,
+}: {
+    kind: PreviewKind;
+    weights: Partial<Record<GradeComponentKey, number>>;
+}) {
+    const [open, setOpen] = useState(false);
+    const title = kind === "advisor_portal" ? "עמוד שיבוץ שופטים (אחראי.ת אקדמי.ת)" : RUBRIC_TEMPLATE_LABELS[kind];
+
+    return (
+        <>
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+                👁️ תצוגה מקדימה
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent dir="rtl" className="w-[calc(100vw-2rem)] max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>תצוגה מקדימה — {title}</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm rounded-md border border-dashed bg-muted/40 px-3 py-2 text-muted-foreground">
+                        כך ייראה העמוד לנמען, עם נתונים לדוגמה. ניתן לנסות את הטופס — שום דבר לא יישמר ולא יישלח.
+                    </p>
+                    {open && (kind === "advisor_portal" ? <AdvisorPortalPreview /> : <GradeFormPreview templateKey={kind} weights={weights} />)}
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+function GradeFormPreview({
+    templateKey,
+    weights,
+}: {
+    templateKey: RubricTemplateKey;
+    weights: Partial<Record<GradeComponentKey, number>>;
+}) {
+    const roles = RUBRIC_TEMPLATE_ROLES[templateKey];
+    const [role, setRole] = useState<GradingRole>(roles[0]);
+    const [submitted, setSubmitted] = useState(false);
+
+    const data: GradeFormData = {
+        invite: {
+            role,
+            recipient_name: null,
+            score: null,
+            teamwork_score: null,
+            project_book_score: null,
+            objectives_score: null,
+            deliverables_on_time: null,
+            comments: null,
+        },
+        template: { key: templateKey, label_he: RUBRIC_TEMPLATE_LABELS[templateKey] },
+        project: SAMPLE_PROJECT,
+        weights: isBookTeamObjectivesForm(templateKey) ? weights : undefined,
+    };
+
+    return (
+        <div className="space-y-3">
+            {roles.length > 1 && (
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">הצגה בתור:</span>
+                    {roles.map((r) => (
+                        <Button
+                            key={r}
+                            size="sm"
+                            variant={r === role ? "default" : "outline"}
+                            onClick={() => { setRole(r); setSubmitted(false); }}
+                        >
+                            {GRADING_ROLE_LABELS[r]}
+                        </Button>
+                    ))}
+                </div>
+            )}
+            <GradeFormView
+                key={role}
+                data={data}
+                submitted={submitted}
+                submitting={false}
+                error={null}
+                onSubmit={async () => {
+                    setSubmitted(true);
+                    toast.info("תצוגה מקדימה — הציון לא נשמר");
+                }}
+            />
+        </div>
+    );
+}
+
+function AdvisorPortalPreview() {
+    const [data, setData] = useState<AdvisorPortalData>(samplePortalData);
+
+    const updateRounds = (projectId: string, update: (rounds: AdvisorPortalProject["rounds"]) => AdvisorPortalProject["rounds"]) =>
+        setData((prev) => ({
+            ...prev,
+            projects: prev.projects.map((p) => (p.id === projectId ? { ...p, rounds: update(p.rounds) } : p)),
+        }));
+
+    const actions: AdvisorPortalActions = {
+        addJudge: async (projectId, round, name, email) => {
+            const project = data.projects.find((p) => p.id === projectId);
+            if (project?.rounds[round].judges.some((j) => j.recipient_email.toLowerCase() === email.toLowerCase())) {
+                throw new Error("השופט/ת הזה/זו כבר משובץ/ת לפרויקט זה בסבב זה");
+            }
+            updateRounds(projectId, (rounds) => ({
+                ...rounds,
+                [round]: {
+                    judges: [
+                        ...rounds[round].judges,
+                        { id: crypto.randomUUID(), recipient_name: name, recipient_email: email, invite_sent_at: null, status: "pending" },
+                    ],
+                },
+            }));
+        },
+        removeJudge: async (projectId, judge) => {
+            updateRounds(projectId, (rounds) => ({
+                mid_presentation: { judges: rounds.mid_presentation.judges.filter((j) => j.id !== judge.id) },
+                final_presentation: { judges: rounds.final_presentation.judges.filter((j) => j.id !== judge.id) },
+            }));
+        },
+    };
+
+    return <AdvisorPortalView data={data} actions={actions} />;
+}
