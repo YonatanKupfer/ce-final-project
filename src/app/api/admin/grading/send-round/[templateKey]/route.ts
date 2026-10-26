@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
-import { sendEmail, wrapEmailHtml } from "@/lib/email";
+import { sendEmail, gradeRequestEmail } from "@/lib/email";
 import { RUBRIC_TEMPLATE_LABELS, GRADING_ROLE_LABELS } from "@/lib/constants";
 import { resolveYearId, resolveTemplateId, isValidTemplateKey } from "@/lib/grading-server";
 
@@ -38,13 +38,17 @@ export async function GET(
     const { data: existingAdvisorInvites } = projectIds.length
         ? await supabase
             .from("grading_invites")
-            .select("project_id")
+            .select("project_id, recipient_email, invite_sent_at")
             .eq("rubric_template_id", templateId)
             .eq("role", "academic_advisor")
             .in("project_id", projectIds)
-        : { data: [] as { project_id: string }[] };
+        : { data: [] as { project_id: string; recipient_email: string | null; invite_sent_at: string | null }[] };
     const projectsWithAdvisorInvite = new Set((existingAdvisorInvites || []).map((i) => i.project_id));
-    const advisorsToSend = projectIds.filter((id) => !projectsWithAdvisorInvite.has(id)).length;
+    // Advisor invites still to be auto-created, plus existing ones (e.g.
+    // added by an admin) that were never emailed.
+    const advisorsToSend =
+        projectIds.filter((id) => !projectsWithAdvisorInvite.has(id)).length +
+        (existingAdvisorInvites || []).filter((i) => i.recipient_email && !i.invite_sent_at).length;
 
     const { data: unsentJudgeInvites } = projectIds.length
         ? await supabase
@@ -54,6 +58,7 @@ export async function GET(
             .eq("role", "judge")
             .in("project_id", projectIds)
             .is("invite_sent_at", null)
+            .not("recipient_email", "is", null)
         : { data: [] as { id: string }[] };
 
     return NextResponse.json({
@@ -138,7 +143,7 @@ export async function POST(
 
         const { data: toSend } = await supabase
             .from("grading_invites")
-            .select("id, token, recipient_email, recipient_name, role, project_id")
+            .select("id, token, recipient_email, recipient_name, admin_note, role, project_id")
             .eq("rubric_template_id", templateId)
             .in("project_id", projectIds)
             .is("invite_sent_at", null);
@@ -165,22 +170,14 @@ export async function POST(
             try {
                 await sendEmail({
                     to: invite.recipient_email,
-                    subject: `בקשה למתן ציון: ${project.title_he}`,
-                    html: wrapEmailHtml(`
-            <h2>בקשה למתן ציון</h2>
-            <p>שלום${invite.recipient_name ? ` ${invite.recipient_name}` : ""},</p>
-            <p>מתבקש/ת למלא ציון (בתפקיד ${roleLabel}) עבור ${roundLabel} של פרויקט הגמר הבא:</p>
-            <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
-              <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px;">${project.project_number ?? "—"}</td></tr>
-              <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט:</td><td style="padding: 8px;">${project.title_he}</td></tr>
-              <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${project.title_en}</td></tr>
-            </table>
-            <p>
-              <a href="${tokenLink}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
-                מעבר לטופס הציון
-              </a>
-            </p>
-          `),
+                    ...gradeRequestEmail({
+                        recipientName: invite.recipient_name,
+                        roleLabel,
+                        formLabel: roundLabel,
+                        project,
+                        link: tokenLink,
+                        adminNote: invite.admin_note,
+                    }),
                 });
                 await supabase
                     .from("grading_invites")

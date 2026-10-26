@@ -14,7 +14,7 @@ export default function GradeTokenPage() {
     const [loading, setLoading] = useState(true);
     const [invalid, setInvalid] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [submitted, setSubmitted] = useState(false);
+    const [submittedAt, setSubmittedAt] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -26,7 +26,7 @@ export default function GradeTokenPage() {
                 } else {
                     const body = await res.json();
                     setData(body);
-                    setSubmitted(body.invite.status === "submitted");
+                    setSubmittedAt(body.invite.status === "submitted" ? body.invite.submitted_at : null);
                 }
             } catch {
                 setInvalid(true);
@@ -50,7 +50,7 @@ export default function GradeTokenPage() {
                 const resBody = await res.json().catch(() => null);
                 throw new Error(resBody?.error || "שגיאה בשליחת הציון");
             }
-            setSubmitted(true);
+            setSubmittedAt(new Date().toISOString());
         } catch (err) {
             setError(err instanceof Error ? err.message : "שגיאה בשליחת הציון");
         } finally {
@@ -89,7 +89,7 @@ export default function GradeTokenPage() {
                 <div className="max-w-2xl w-full my-8">
                     <GradeFormView
                         data={data}
-                        submitted={submitted}
+                        submittedAt={submittedAt}
                         submitting={submitting}
                         error={error}
                         onSubmit={handleSubmit}

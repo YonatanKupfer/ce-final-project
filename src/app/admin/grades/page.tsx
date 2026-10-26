@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { InviteScoreForm } from "@/components/score-fields-form";
 import { useAdminYear } from "@/app/admin/year-context";
+import { formatDateTime } from "@/lib/utils";
 import { SendRoundButton, SendAdvisorLinksButton, FormPreviewButton, RoundReminders } from "@/app/admin/grades/grading-actions";
 import {
     GRADE_COMPONENT_DEFAULTS,
@@ -23,6 +24,7 @@ import {
     RUBRIC_TEMPLATE_LABELS,
     RUBRIC_TEMPLATE_ROLES,
     GRADING_ROLE_LABELS,
+    isBookTeamObjectivesForm,
     type GradingInvite,
     type GradingRole,
     type RubricTemplateKey,
@@ -44,6 +46,31 @@ interface SummaryRow {
 }
 
 type InviteWithTemplate = GradingInvite & { rubric_template?: { key: RubricTemplateKey; label_he: string } };
+
+// Presentation rounds default to adding a judge (the advisor's own invite
+// is auto-created by the per-form send); advisor-only forms have no choice.
+function defaultRoleFor(template: RubricTemplateKey): GradingRole {
+    const roles = RUBRIC_TEMPLATE_ROLES[template];
+    return roles.includes("judge") ? "judge" : roles[0];
+}
+
+function deliverablesLine(invite: InviteWithTemplate) {
+    if (invite.status !== "submitted" || !invite.rubric_template || !isBookTeamObjectivesForm(invite.rubric_template.key)) return null;
+    if (invite.deliverables_on_time) return "כל התוצרים הוגשו בזמן";
+    return invite.deliverables_submitted_on
+        ? `התוצרים לא הוגשו בזמן — הוגשו בתאריך ${new Date(invite.deliverables_submitted_on).toLocaleDateString("he-IL")}`
+        : "התוצרים לא הוגשו בזמן (לא צוין תאריך הגשה)";
+}
+
+function inviteStatusLine(invite: InviteWithTemplate) {
+    if (invite.status === "submitted" && invite.submitted_at) return `הוגש: ${formatDateTime(invite.submitted_at)}`;
+    if (!invite.recipient_email) return 'הזנה ידנית ע"י הצוות';
+    if (!invite.invite_sent_at) return 'טרם נשלח — יישלח עם "שליחת קישורי ציון"';
+    const sent = `קישור נשלח: ${formatDateTime(invite.invite_sent_at)}`;
+    return invite.last_reminder_sent_at
+        ? `${sent} · תזכורת אחרונה: ${formatDateTime(invite.last_reminder_sent_at)} (${invite.reminder_count})`
+        : sent;
+}
 
 export default function AdminGradesPage() {
     const { selectedYear } = useAdminYear();
@@ -279,9 +306,10 @@ function ProjectGradeDetail({
         name: string;
         email: string;
         note: string;
-    }>({ template: "mid_presentation", role: "academic_advisor", name: "", email: "", note: "" });
+    }>({ template: "mid_presentation", role: defaultRoleFor("mid_presentation"), name: "", email: "", note: "" });
     const [creating, setCreating] = useState(false);
     const [reminding, setReminding] = useState<string | null>(null);
+    const [sendingId, setSendingId] = useState<string | null>(null);
     const [editingInviteId, setEditingInviteId] = useState<string | null>(null);
     const [savingManual, setSavingManual] = useState(false);
 
@@ -319,7 +347,7 @@ function ProjectGradeDetail({
                 const body = await res.json().catch(() => null);
                 throw new Error(body?.error);
             }
-            toast.success(newInvite.email.trim() ? "ההזמנה נשלחה במייל" : "ההזמנה נוצרה");
+            toast.success(newInvite.email.trim() ? "נוסף/ה — טרם נשלח מייל" : "ההזמנה נוצרה");
             setNewInvite((prev) => ({ ...prev, name: "", email: "", note: "" }));
             loadInvites();
             onChanged();
@@ -347,8 +375,30 @@ function ProjectGradeDetail({
         }
     };
 
+    const handleSendNow = async (invite: InviteWithTemplate) => {
+        if (!confirm(`לשלוח עכשיו את הקישור לטופס ל-${invite.recipient_name || invite.recipient_email}?`)) return;
+        setSendingId(invite.id);
+        try {
+            const res = await fetch(`/api/admin/grading/invites/${invite.id}/send`, { method: "POST" });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error);
+            }
+            toast.success("הקישור נשלח");
+            loadInvites();
+            onChanged();
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשליחת הקישור");
+        } finally {
+            setSendingId(null);
+        }
+    };
+
     const handleDelete = async (invite: InviteWithTemplate) => {
-        if (!confirm("למחוק את ההזמנה? לא ניתן לשחזר.")) return;
+        const msg = invite.status === "submitted"
+            ? "ההזמנה כבר הוגשה — המחיקה תמחק גם את הציון. למחוק? לא ניתן לשחזר."
+            : "למחוק את ההזמנה? לא ניתן לשחזר.";
+        if (!confirm(msg)) return;
         try {
             const res = await fetch(`/api/admin/grading/invites/${invite.id}`, { method: "DELETE" });
             if (!res.ok) throw new Error();
@@ -435,6 +485,10 @@ function ProjectGradeDetail({
                                         {invite.status === "submitted" ? "הוגש" : "ממתין"}
                                     </Badge>
                                 </div>
+                                <p className="text-xs text-muted-foreground">{inviteStatusLine(invite)}</p>
+                                {deliverablesLine(invite) && (
+                                    <p className="text-sm">{deliverablesLine(invite)}</p>
+                                )}
                                 {invite.comments && (
                                     <div className="text-sm bg-muted/50 rounded-md px-3 py-2">
                                         <span className="font-medium">הערות: </span>
@@ -449,7 +503,17 @@ function ProjectGradeDetail({
                                     >
                                         {invite.status === "submitted" ? "עריכת ציון" : "הזנת ציון ידנית"}
                                     </Button>
-                                    {invite.status === "pending" && invite.recipient_email && (
+                                    {invite.status === "pending" && invite.recipient_email && !invite.invite_sent_at && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={sendingId === invite.id}
+                                            onClick={() => handleSendNow(invite)}
+                                        >
+                                            {sendingId === invite.id ? "שולח..." : "שליחת קישור עכשיו"}
+                                        </Button>
+                                    )}
+                                    {invite.status === "pending" && invite.recipient_email && invite.invite_sent_at && (
                                         <Button
                                             size="sm"
                                             variant="ghost"
@@ -484,7 +548,7 @@ function ProjectGradeDetail({
             </div>
 
             <div className="space-y-2 border-t pt-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">הוספת הזמנה חדשה</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">הוספת שופט/ת או הזמנה</h3>
                 <div className="grid grid-cols-2 gap-2">
                     <div>
                         <Label>טופס</Label>
@@ -494,7 +558,7 @@ function ProjectGradeDetail({
                                 setNewInvite((prev) => ({
                                     ...prev,
                                     template: v as RubricTemplateKey,
-                                    role: RUBRIC_TEMPLATE_ROLES[v as RubricTemplateKey][0],
+                                    role: defaultRoleFor(v as RubricTemplateKey),
                                 }))
                             }
                         >
@@ -527,14 +591,17 @@ function ProjectGradeDetail({
                     onChange={(e) => setNewInvite((prev) => ({ ...prev, name: e.target.value }))}
                 />
                 <Input
-                    placeholder='אימייל (לשליחת קישור; ריק = הזנה ידנית ע"י הצוות)'
+                    placeholder='אימייל (ריק = הזנה ידנית ע"י הצוות)'
                     value={newInvite.email}
                     onChange={(e) => setNewInvite((prev) => ({ ...prev, email: e.target.value }))}
                     dir="ltr"
                 />
                 <Button onClick={handleCreateInvite} disabled={creating} className="w-full">
-                    {creating ? "יוצר..." : newInvite.email.trim() ? "שליחת הזמנה במייל" : "יצירת הזמנה להזנה ידנית"}
+                    {creating ? "מוסיף..." : newInvite.email.trim() ? "הוספה (ללא שליחת מייל)" : "יצירת הזמנה להזנה ידנית"}
                 </Button>
+                <p className="text-xs text-muted-foreground">
+                    לא נשלח מייל בעת ההוספה. הקישור יישלח יחד עם &quot;שליחת קישורי ציון&quot; של הטופס, או מיד בכפתור &quot;שליחת קישור עכשיו&quot;.
+                </p>
             </div>
         </div>
     );

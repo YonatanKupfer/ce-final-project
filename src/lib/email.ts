@@ -69,3 +69,41 @@ export function advisorPortalEmail(advisorName: string, portalLink: string) {
       `),
     };
 }
+
+// The initial "please submit a score" email for one grading invite — sent
+// by the per-form bulk send and by the admin's single-invite send button.
+export function gradeRequestEmail({
+    recipientName,
+    roleLabel,
+    formLabel,
+    project,
+    link,
+    adminNote,
+}: {
+    recipientName: string | null;
+    roleLabel: string;
+    formLabel: string;
+    project: { project_number: number | null; title_he: string; title_en: string };
+    link: string;
+    adminNote?: string | null;
+}) {
+    return {
+        subject: `בקשה למתן ציון: ${project.title_he}`,
+        html: wrapEmailHtml(`
+        <h2>בקשה למתן ציון</h2>
+        <p>שלום${recipientName ? ` ${recipientName}` : ""},</p>
+        <p>מתבקש/ת למלא ציון (בתפקיד ${roleLabel}) עבור ${formLabel} של פרויקט הגמר הבא:</p>
+        <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+          <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px;">${project.project_number ?? "—"}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט:</td><td style="padding: 8px;">${project.title_he}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${project.title_en}</td></tr>
+        </table>
+        ${adminNote ? `<p><strong>הערה:</strong><br/>${adminNote}</p>` : ""}
+        <p>
+          <a href="${link}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+            מעבר לטופס הציון
+          </a>
+        </p>
+      `),
+    };
+}

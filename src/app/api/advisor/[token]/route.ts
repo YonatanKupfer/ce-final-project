@@ -41,13 +41,13 @@ export async function GET(
         const { data: judgeInvites } = projectIds.length
             ? await supabase
                 .from("grading_invites")
-                .select("id, project_id, rubric_template_id, recipient_name, recipient_email, invite_sent_at, status")
+                .select("id, project_id, rubric_template_id, recipient_name, recipient_email, invite_sent_at, submitted_at, status")
                 .eq("role", "judge")
                 .in("project_id", projectIds)
                 .in("rubric_template_id", [midTemplateId, finalTemplateId].filter(Boolean))
-            : { data: [] as { id: string; project_id: string; rubric_template_id: string; recipient_name: string | null; recipient_email: string | null; invite_sent_at: string | null; status: string }[] };
+            : { data: [] as { id: string; project_id: string; rubric_template_id: string; recipient_name: string | null; recipient_email: string | null; invite_sent_at: string | null; submitted_at: string | null; status: string }[] };
 
-        type JudgeEntry = { id: string; recipient_name: string; recipient_email: string; invite_sent_at: string | null; status: "pending" | "submitted" };
+        type JudgeEntry = { id: string; recipient_name: string; recipient_email: string; invite_sent_at: string | null; submitted_at: string | null; status: "pending" | "submitted" };
         const judgesByProjectAndTemplate = new Map<string, JudgeEntry[]>();
         for (const inv of judgeInvites || []) {
             const key = `${inv.project_id}:${inv.rubric_template_id}`;
@@ -56,6 +56,7 @@ export async function GET(
                 recipient_name: inv.recipient_name || "",
                 recipient_email: inv.recipient_email || "",
                 invite_sent_at: inv.invite_sent_at,
+                submitted_at: inv.submitted_at,
                 status: inv.status as "pending" | "submitted",
             };
             judgesByProjectAndTemplate.set(key, [...(judgesByProjectAndTemplate.get(key) || []), entry]);

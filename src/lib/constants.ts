@@ -280,6 +280,9 @@ export interface GradingInvite {
     objectives_score: number | null;
     invite_sent_at: string | null;
     deliverables_on_time: boolean | null;
+    // Actual submission date (YYYY-MM-DD) when deliverables_on_time is
+    // false; null when on time or not submitted yet.
+    deliverables_submitted_on: string | null;
     // Optional free-text comments submitted alongside the score(s).
     comments: string | null;
     submitted_at: string | null;

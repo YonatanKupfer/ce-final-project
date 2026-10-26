@@ -55,6 +55,7 @@ export async function PATCH(
                     project_book_score: parsed.data.project_book,
                     objectives_score: parsed.data.objectives,
                     deliverables_on_time: parsed.data.deliverables_on_time,
+                    deliverables_submitted_on: parsed.data.deliverables_on_time ? null : parsed.data.deliverables_submitted_on ?? null,
                     comments: parsed.data.comments || null,
                     status: "submitted",
                     submitted_at: new Date().toISOString(),

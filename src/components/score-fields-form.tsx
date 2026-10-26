@@ -28,10 +28,11 @@ interface ScoreFieldsFormProps {
     fields: ScoreField[];
     showDeliverablesCheckbox?: boolean;
     initialDeliverablesOnTime?: boolean | null;
+    initialDeliverablesSubmittedOn?: string | null;
     initialComments?: string | null;
     onSubmit: (
         values: Record<string, number>,
-        extras: { deliverablesOnTime?: boolean; comments: string }
+        extras: { deliverablesOnTime?: boolean; deliverablesSubmittedOn?: string | null; comments: string }
     ) => Promise<void>;
     submitting?: boolean;
     submitLabel?: string;
@@ -45,6 +46,7 @@ export function ScoreFieldsForm({
     fields,
     showDeliverablesCheckbox,
     initialDeliverablesOnTime,
+    initialDeliverablesSubmittedOn,
     initialComments,
     onSubmit,
     submitting,
@@ -54,6 +56,7 @@ export function ScoreFieldsForm({
         Object.fromEntries(fields.map((f) => [f.key, f.initialValue != null ? String(f.initialValue) : ""]))
     );
     const [deliverablesOnTime, setDeliverablesOnTime] = useState(initialDeliverablesOnTime ?? false);
+    const [deliverablesSubmittedOn, setDeliverablesSubmittedOn] = useState(initialDeliverablesSubmittedOn ?? "");
     const [comments, setComments] = useState(initialComments ?? "");
 
     const isValid = (key: string) => {
@@ -69,6 +72,7 @@ export function ScoreFieldsForm({
         const numericValues = Object.fromEntries(fields.map((f) => [f.key, Number(values[f.key])]));
         await onSubmit(numericValues, {
             deliverablesOnTime: showDeliverablesCheckbox ? deliverablesOnTime : undefined,
+            deliverablesSubmittedOn: showDeliverablesCheckbox && !deliverablesOnTime ? deliverablesSubmittedOn || null : null,
             comments: comments.trim(),
         });
     };
@@ -101,6 +105,21 @@ export function ScoreFieldsForm({
                         <Label>כל התוצרים של הפרויקט הוגשו בזמן</Label>
                     </div>
                 )}
+                {showDeliverablesCheckbox && !deliverablesOnTime && (
+                    <div className="space-y-1.5 ps-6">
+                        <Label htmlFor="deliverables-submitted-on">
+                            תאריך הגשת התוצרים בפועל
+                        </Label>
+                        <Input
+                            id="deliverables-submitted-on"
+                            type="date"
+                            className="w-44"
+                            value={deliverablesSubmittedOn}
+                            onChange={(e) => setDeliverablesSubmittedOn(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">ניתן להשאיר ריק אם התוצרים טרם הוגשו.</p>
+                    </div>
+                )}
                 <div className="space-y-1.5">
                     <Label htmlFor="grading-comments">
                         הערות <span className="text-muted-foreground font-normal">(לא חובה)</span>
@@ -122,7 +141,10 @@ export function ScoreFieldsForm({
     );
 }
 
-type InviteScores = Pick<GradingInvite, "score" | "teamwork_score" | "project_book_score" | "objectives_score" | "deliverables_on_time" | "comments">;
+type InviteScores = Pick<
+    GradingInvite,
+    "score" | "teamwork_score" | "project_book_score" | "objectives_score" | "deliverables_on_time" | "deliverables_submitted_on" | "comments"
+>;
 
 // Picks the right fields for an invite's form and maps the submitted values
 // to the request body /api/grade/[token] and the admin PATCH route expect.
@@ -151,13 +173,15 @@ export function InviteScoreForm({
                 ]}
                 showDeliverablesCheckbox
                 initialDeliverablesOnTime={invite.deliverables_on_time}
+                initialDeliverablesSubmittedOn={invite.deliverables_submitted_on}
                 initialComments={invite.comments}
-                onSubmit={(values, { deliverablesOnTime, comments }) =>
+                onSubmit={(values, { deliverablesOnTime, deliverablesSubmittedOn, comments }) =>
                     onSubmit({
                         teamwork: values.teamwork,
                         project_book: values.project_book,
                         objectives: values.objectives,
                         deliverables_on_time: deliverablesOnTime,
+                        deliverables_submitted_on: deliverablesSubmittedOn,
                         comments,
                     })
                 }

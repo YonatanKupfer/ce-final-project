@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
-import { sendEmail, wrapEmailHtml } from "@/lib/email";
 import { gradingInviteCreateSchema } from "@/lib/validations";
-import { RUBRIC_TEMPLATE_ROLES, RUBRIC_TEMPLATE_LABELS, GRADING_ROLE_LABELS } from "@/lib/constants";
+import { RUBRIC_TEMPLATE_ROLES } from "@/lib/constants";
 
 export async function GET(
     request: NextRequest,
@@ -43,7 +42,7 @@ export async function POST(
 
         const { data: project } = await supabase
             .from("projects")
-            .select("id, project_number, title_he, title_en")
+            .select("id")
             .eq("id", id)
             .single();
         if (!project) {
@@ -69,43 +68,22 @@ export async function POST(
                 recipient_name: recipient_name || null,
                 admin_note: admin_note || null,
                 created_by_email,
-                // Emailed immediately below when there's a recipient, so mark
-                // it sent now — otherwise the global per-round send button
-                // would try to (re)send this one too.
-                invite_sent_at: recipient_email ? new Date().toISOString() : null,
+                // Never emailed on creation — same as an advisor's portal
+                // assignment. The per-form "send" action (or the single
+                // invite send button) emails it when the admin decides to.
+                invite_sent_at: null,
             })
             .select("*")
             .single();
 
         if (error || !invite) {
+            if (error?.code === "23505") {
+                return NextResponse.json(
+                    { error: role === "judge" ? "השופט/ת הזה/זו כבר משובץ/ת לפרויקט זה בטופס זה" : "כבר קיימת הזמנה לאחראי.ת האקדמי.ת בטופס זה" },
+                    { status: 409 }
+                );
+            }
             return NextResponse.json({ error: error?.message || "שגיאה ביצירת הזמנה" }, { status: 500 });
-        }
-
-        if (recipient_email) {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-            const link = `${appUrl}/grade/${invite.token}`;
-            const roleLabel = GRADING_ROLE_LABELS[role];
-
-            await sendEmail({
-                to: recipient_email,
-                subject: `בקשה למתן ציון: ${project.title_he}`,
-                html: wrapEmailHtml(`
-          <h2>בקשה למתן ציון</h2>
-          <p>שלום${recipient_name ? ` ${recipient_name}` : ""},</p>
-          <p>מתבקש/ת למלא ציון (בתפקיד ${roleLabel}) עבור ${RUBRIC_TEMPLATE_LABELS[rubric_template_key]} של פרויקט הגמר הבא:</p>
-          <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
-            <tr><td style="padding: 8px; font-weight: bold;">מספר פרויקט:</td><td style="padding: 8px;">${project.project_number ?? "—"}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">שם הפרויקט:</td><td style="padding: 8px;">${project.title_he}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">Project Title:</td><td style="padding: 8px;">${project.title_en}</td></tr>
-          </table>
-          ${admin_note ? `<p><strong>הערה:</strong><br/>${admin_note}</p>` : ""}
-          <p>
-            <a href="${link}" style="background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
-              מעבר לטופס הציון
-            </a>
-          </p>
-        `),
-            }).catch(console.error);
         }
 
         return NextResponse.json({ invite });

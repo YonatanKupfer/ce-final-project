@@ -44,13 +44,24 @@ async function loadRoundStatus(supabase: ReturnType<typeof getAdminClient>, year
     const { data: invites } = projectIds.length
         ? await supabase
             .from("grading_invites")
-            .select("id, token, project_id, role, recipient_name, recipient_email, status, invite_sent_at, reminder_count, last_reminder_sent_at")
+            .select("id, token, project_id, role, recipient_name, recipient_email, status, invite_sent_at, submitted_at, reminder_count, last_reminder_sent_at")
             .eq("rubric_template_id", templateId)
             .in("project_id", projectIds)
         : { data: [] };
 
     const all = invites || [];
-    const submitted = all.filter((i) => i.status === "submitted").length;
+    const submittedList = all
+        .filter((i) => i.status === "submitted")
+        .map((i) => ({
+            id: i.id,
+            role: i.role as GradingRole,
+            recipient_name: i.recipient_name,
+            recipient_email: i.recipient_email,
+            project_number: projectById.get(i.project_id)?.project_number ?? null,
+            title_he: projectById.get(i.project_id)?.title_he ?? "",
+            submitted_at: i.submitted_at as string | null,
+        }))
+        .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
     const pending = all.filter((i) => i.status === "pending");
     const pendingUnsent = pending.filter((i) => !i.invite_sent_at || !i.recipient_email).length;
 
@@ -91,7 +102,8 @@ async function loadRoundStatus(supabase: ReturnType<typeof getAdminClient>, year
     const recipients = [...groups.values()].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, "he"));
     return {
         total: all.length,
-        submitted,
+        submitted: submittedList.length,
+        submitted_list: submittedList,
         pending: pending.length,
         pending_unsent: pendingUnsent,
         recipients,

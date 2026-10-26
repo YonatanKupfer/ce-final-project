@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AdvisorPicker } from "@/components/advisor-picker";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/utils";
 import { PRESENTATION_ROUND_KEYS, RUBRIC_TEMPLATE_LABELS, type PresentationRoundKey } from "@/lib/constants";
 
 export interface JudgeEntry {
@@ -13,6 +14,7 @@ export interface JudgeEntry {
     recipient_name: string;
     recipient_email: string;
     invite_sent_at: string | null;
+    submitted_at: string | null;
     status: "pending" | "submitted";
 }
 
@@ -164,6 +166,9 @@ function RoundSection({
                                 <span className="text-muted-foreground" dir="ltr"> · {judge.recipient_email}</span>
                             </div>
                             <div className="flex items-center gap-2">
+                                {judge.status === "submitted" && judge.submitted_at && (
+                                    <span className="text-xs text-muted-foreground">{formatDateTime(judge.submitted_at)}</span>
+                                )}
                                 <Badge variant={judge.status === "submitted" ? "default" : judge.invite_sent_at ? "secondary" : "outline"}>
                                     {judge.status === "submitted" ? "הוגש" : judge.invite_sent_at ? "נשלח" : "משובץ"}
                                 </Badge>

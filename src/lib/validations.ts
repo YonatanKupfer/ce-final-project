@@ -80,6 +80,7 @@ export const bookTeamObjectivesSubmitSchema = z.object({
     project_book: score1to100,
     objectives: score1to100,
     deliverables_on_time: z.boolean(),
+    deliverables_submitted_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "תאריך לא תקין").nullable().optional(),
     comments: gradingComments,
 });
 

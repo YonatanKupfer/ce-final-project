@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/utils";
 import { GradeFormView, type GradeFormData } from "@/components/grade-form-view";
 import {
     AdvisorPortalView,
@@ -111,6 +112,15 @@ export function SendRoundButton({
 interface RoundStatus {
     total: number;
     submitted: number;
+    submitted_list: {
+        id: string;
+        role: GradingRole;
+        recipient_name: string | null;
+        recipient_email: string | null;
+        project_number: number | null;
+        title_he: string;
+        submitted_at: string | null;
+    }[];
     pending: number;
     pending_unsent: number;
     cooldown_hours: number;
@@ -123,7 +133,8 @@ interface RoundStatus {
     }[];
 }
 
-// Progress badge + "remind everyone who hasn't submitted" for one form.
+// Submission status (who submitted when, who's still pending) + "remind
+// everyone who hasn't submitted" for one form.
 // Reminders go out as one combined email per recipient, skipping anyone
 // reminded within the server's cooldown window.
 export function RoundReminders({
@@ -191,9 +202,11 @@ export function RoundReminders({
 
     return (
         <>
-            <Badge variant={allDone ? "default" : "outline"}>
-                {status.submitted}/{status.total} הוגשו
-            </Badge>
+            <Button size="sm" variant="ghost" onClick={handleOpen} title="סטטוס הגשה">
+                <Badge variant={allDone ? "default" : "outline"}>
+                    {status.submitted}/{status.total} הוגשו
+                </Badge>
+            </Button>
             {status.recipients.length > 0 && (
                 <Button size="sm" variant="outline" onClick={handleOpen}>
                     🔔 תזכורת ({status.recipients.length})
@@ -202,53 +215,80 @@ export function RoundReminders({
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent dir="rtl" className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>טפסים שטרם הוגשו — {RUBRIC_TEMPLATE_LABELS[templateKey]}</DialogTitle>
+                        <DialogTitle>סטטוס הגשה — {RUBRIC_TEMPLATE_LABELS[templateKey]}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                            הוגשו {status.submitted} מתוך {status.total} טפסים. כל נמען/ת יקבל/תקבל מייל אחד שמרכז את כל הטפסים
-                            הממתינים שלו/ה, עם קישור נפרד לכל פרויקט. מי שקיבל/ה תזכורת ב-{status.cooldown_hours} השעות
-                            האחרונות ידולג/תדולג.
-                        </p>
+                        <h3 className="text-sm font-semibold">ממתינים להגשה ({status.pending})</h3>
                         {status.pending_unsent > 0 && (
                             <p className="text-sm rounded-md border border-dashed px-3 py-2 text-muted-foreground">
-                                {status.pending_unsent} טפסים נוספים טרם נשלחו כלל (או שאין להם כתובת מייל) — הם לא נכללים בתזכורת.
+                                {status.pending_unsent} טפסים טרם נשלחו כלל (או שאין להם כתובת מייל) — הם לא נכללים בתזכורת.
                                 לשליחתם יש להשתמש ב&quot;שליחת קישורי ציון&quot;.
                             </p>
                         )}
-                        <div className="rounded-lg border divide-y">
-                            {status.recipients.map((r) => (
-                                <div key={r.email} className={`px-3 py-2 text-sm space-y-1 ${r.eligible ? "" : "opacity-60"}`}>
-                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                        {status.recipients.length > 0 && (
+                            <>
+                                <p className="text-sm text-muted-foreground">
+                                    כל נמען/ת יקבל/תקבל מייל אחד שמרכז את כל הטפסים הממתינים שלו/ה, עם קישור נפרד לכל פרויקט.
+                                    מי שקיבל/ה תזכורת ב-{status.cooldown_hours} השעות האחרונות ידולג/תדולג.
+                                </p>
+                                <div className="rounded-lg border divide-y">
+                                    {status.recipients.map((r) => (
+                                        <div key={r.email} className={`px-3 py-2 text-sm space-y-1 ${r.eligible ? "" : "opacity-60"}`}>
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                <div>
+                                                    <span className="font-medium">{r.name || r.email}</span>
+                                                    {r.name && <span className="text-muted-foreground" dir="ltr"> · {r.email}</span>}
+                                                </div>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {r.last_reminder_sent_at
+                                                        ? `תזכורת אחרונה: ${formatDateTime(r.last_reminder_sent_at)}`
+                                                        : "טרם נשלחה תזכורת"}
+                                                    {!r.eligible && " · ידולג"}
+                                                </span>
+                                            </div>
+                                            <ul className="text-muted-foreground space-y-0.5">
+                                                {r.invites.map((inv) => (
+                                                    <li key={inv.id}>
+                                                        {inv.project_number ? `#${inv.project_number} ` : ""}{inv.title_he}
+                                                        <span className="text-xs"> · {GRADING_ROLE_LABELS[inv.role]}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button onClick={handleConfirm} disabled={sending || eligible.length === 0} className="w-full">
+                                    {sending
+                                        ? "שולח..."
+                                        : eligible.length === 0
+                                            ? "כל הנמענים קיבלו תזכורת לאחרונה"
+                                            : `שליחת תזכורת ל-${eligible.length} נמענים (${eligibleForms} טפסים)`}
+                                </Button>
+                            </>
+                        )}
+                        {status.pending === 0 && <p className="text-sm text-muted-foreground">כל הטפסים הוגשו.</p>}
+
+                        <h3 className="text-sm font-semibold pt-2">הוגשו ({status.submitted})</h3>
+                        {status.submitted_list.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">טרם הוגשו טפסים.</p>
+                        ) : (
+                            <div className="rounded-lg border divide-y">
+                                {status.submitted_list.map((inv) => (
+                                    <div key={inv.id} className="px-3 py-2 text-sm flex items-center justify-between gap-2 flex-wrap">
                                         <div>
-                                            <span className="font-medium">{r.name || r.email}</span>
-                                            {r.name && <span className="text-muted-foreground" dir="ltr"> · {r.email}</span>}
+                                            <span className="font-medium">{inv.recipient_name || inv.recipient_email || 'הזנה ידנית ע"י הצוות'}</span>
+                                            <span className="text-muted-foreground">
+                                                {" · "}{inv.project_number ? `#${inv.project_number} ` : ""}{inv.title_he}
+                                                <span className="text-xs"> · {GRADING_ROLE_LABELS[inv.role]}</span>
+                                            </span>
                                         </div>
                                         <span className="text-xs text-muted-foreground">
-                                            {r.last_reminder_sent_at
-                                                ? `תזכורת אחרונה: ${new Date(r.last_reminder_sent_at).toLocaleDateString("he-IL")}`
-                                                : "טרם נשלחה תזכורת"}
-                                            {!r.eligible && " · ידולג"}
+                                            {inv.submitted_at ? `הוגש: ${formatDateTime(inv.submitted_at)}` : "הוגש"}
                                         </span>
                                     </div>
-                                    <ul className="text-muted-foreground space-y-0.5">
-                                        {r.invites.map((inv) => (
-                                            <li key={inv.id}>
-                                                {inv.project_number ? `#${inv.project_number} ` : ""}{inv.title_he}
-                                                <span className="text-xs"> · {GRADING_ROLE_LABELS[inv.role]}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
-                        </div>
-                        <Button onClick={handleConfirm} disabled={sending || eligible.length === 0} className="w-full">
-                            {sending
-                                ? "שולח..."
-                                : eligible.length === 0
-                                    ? "כל הנמענים קיבלו תזכורת לאחרונה"
-                                    : `שליחת תזכורת ל-${eligible.length} נמענים (${eligibleForms} טפסים)`}
-                        </Button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
@@ -392,7 +432,7 @@ function GradeFormPreview({
 }) {
     const roles = RUBRIC_TEMPLATE_ROLES[templateKey];
     const [role, setRole] = useState<GradingRole>(roles[0]);
-    const [submitted, setSubmitted] = useState(false);
+    const [submittedAt, setSubmittedAt] = useState<string | null>(null);
 
     const data: GradeFormData = {
         invite: {
@@ -403,6 +443,7 @@ function GradeFormPreview({
             project_book_score: null,
             objectives_score: null,
             deliverables_on_time: null,
+            deliverables_submitted_on: null,
             comments: null,
         },
         template: { key: templateKey, label_he: RUBRIC_TEMPLATE_LABELS[templateKey] },
@@ -420,7 +461,7 @@ function GradeFormPreview({
                             key={r}
                             size="sm"
                             variant={r === role ? "default" : "outline"}
-                            onClick={() => { setRole(r); setSubmitted(false); }}
+                            onClick={() => { setRole(r); setSubmittedAt(null); }}
                         >
                             {GRADING_ROLE_LABELS[r]}
                         </Button>
@@ -430,11 +471,11 @@ function GradeFormPreview({
             <GradeFormView
                 key={role}
                 data={data}
-                submitted={submitted}
+                submittedAt={submittedAt}
                 submitting={false}
                 error={null}
                 onSubmit={async () => {
-                    setSubmitted(true);
+                    setSubmittedAt(new Date().toISOString());
                     toast.info("תצוגה מקדימה — הציון לא נשמר");
                 }}
             />
@@ -462,7 +503,7 @@ function AdvisorPortalPreview() {
                 [round]: {
                     judges: [
                         ...rounds[round].judges,
-                        { id: crypto.randomUUID(), recipient_name: name, recipient_email: email, invite_sent_at: null, status: "pending" },
+                        { id: crypto.randomUUID(), recipient_name: name, recipient_email: email, invite_sent_at: null, submitted_at: null, status: "pending" },
                     ],
                 },
             }));

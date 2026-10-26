@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InviteScoreForm } from "@/components/score-fields-form";
+import { formatDateTime } from "@/lib/utils";
 import {
     TRACKS,
     GRADING_ROLE_LABELS,
@@ -22,6 +23,7 @@ export interface GradeFormData {
         project_book_score: number | null;
         objectives_score: number | null;
         deliverables_on_time: boolean | null;
+        deliverables_submitted_on: string | null;
         comments: string | null;
     };
     template: { key: RubricTemplateKey; label_he: string };
@@ -41,13 +43,14 @@ export interface GradeFormData {
 // "preview form" dialog so admins see exactly what a recipient will see.
 export function GradeFormView({
     data,
-    submitted,
+    submittedAt,
     submitting,
     error,
     onSubmit,
 }: {
     data: GradeFormData;
-    submitted: boolean;
+    // Last submission time; null while the form hasn't been submitted yet.
+    submittedAt: string | null;
     submitting: boolean;
     error: string | null;
     onSubmit: (body: Record<string, unknown>) => Promise<void>;
@@ -75,10 +78,10 @@ export function GradeFormView({
                 </CardContent>
             </Card>
 
-            {submitted && (
+            {submittedAt && (
                 <Card className="border-green-600/30 bg-green-50 dark:bg-green-900/10">
                     <CardContent className="py-4 text-center text-green-700 dark:text-green-400 text-sm">
-                        הציון נשלח בהצלחה. ניתן לערוך ולשלוח מחדש עד למועד סגירת הטופס.
+                        הציון הוגש בתאריך {formatDateTime(submittedAt)}. ניתן לערוך ולשלוח מחדש עד למועד סגירת הטופס.
                     </CardContent>
                 </Card>
             )}
@@ -101,7 +104,7 @@ export function GradeFormView({
                 weights={weights}
                 onSubmit={onSubmit}
                 submitting={submitting}
-                submitLabel={submitted ? "עדכון ציון" : "שליחת ציון"}
+                submitLabel={submittedAt ? "עדכון ציון" : "שליחת ציון"}
             />
         </div>
     );

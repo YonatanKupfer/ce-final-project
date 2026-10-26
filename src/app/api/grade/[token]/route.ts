@@ -31,7 +31,7 @@ export async function GET(
         const { data: invite } = await supabase
             .from("grading_invites")
             .select(
-                `id, project_id, role, status, recipient_name, score, teamwork_score, project_book_score, objectives_score, deliverables_on_time, comments, rubric_template:rubric_templates(key, label_he), project:projects(${PUBLIC_SAFE_PROJECT_COLUMNS})`
+                `id, project_id, role, status, recipient_name, score, teamwork_score, project_book_score, objectives_score, deliverables_on_time, deliverables_submitted_on, comments, submitted_at, rubric_template:rubric_templates(key, label_he), project:projects(${PUBLIC_SAFE_PROJECT_COLUMNS})`
             )
             .eq("token", token)
             .single();
@@ -55,7 +55,9 @@ export async function GET(
                 project_book_score: invite.project_book_score,
                 objectives_score: invite.objectives_score,
                 deliverables_on_time: invite.deliverables_on_time,
+                deliverables_submitted_on: invite.deliverables_submitted_on,
                 comments: invite.comments,
+                submitted_at: invite.submitted_at,
             },
             template,
             project: invite.project,
@@ -101,6 +103,7 @@ export async function POST(
                     project_book_score: parsed.data.project_book,
                     objectives_score: parsed.data.objectives,
                     deliverables_on_time: parsed.data.deliverables_on_time,
+                    deliverables_submitted_on: parsed.data.deliverables_on_time ? null : parsed.data.deliverables_submitted_on ?? null,
                     comments: parsed.data.comments || null,
                     status: "submitted",
                     submitted_at: new Date().toISOString(),
