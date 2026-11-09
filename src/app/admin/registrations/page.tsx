@@ -75,12 +75,15 @@ export default function AdminRegistrationsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(editData),
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error);
+            }
             toast.success("השינויים נשמרו");
             setEditReg(null);
             loadRegistrations();
-        } catch {
-            toast.error("שגיאה בשמירה");
+        } catch (err) {
+            toast.error(err instanceof Error && err.message ? err.message : "שגיאה בשמירה");
         } finally {
             setSaving(false);
         }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
 import { sendEmail, wrapEmailHtml } from "@/lib/email";
+import { UNIQUE_VIOLATION, hasOtherApprovedRegistration, syncProjectTaken } from "@/lib/registrations";
 
 export async function POST(
     request: NextRequest,
@@ -33,18 +34,32 @@ export async function POST(
 
         const project = registration.project;
 
-        // Update registration status
-        await supabase
+        if (decision === "approved"
+            && await hasOtherApprovedRegistration(supabase, registration.project_id, registration.id)) {
+            return NextResponse.json({ error: "Project taken" }, { status: 409 });
+        }
+
+        // Update registration status — only if still pending, so a double
+        // click or two open tabs can't decide the same registration twice
+        const { data: updated, error: updateError } = await supabase
             .from("registrations")
             .update({ status: decision })
-            .eq("id", registration.id);
+            .eq("id", registration.id)
+            .eq("status", "pending")
+            .select("id");
+
+        if (updateError) {
+            if (updateError.code === UNIQUE_VIOLATION) {
+                return NextResponse.json({ error: "Project taken" }, { status: 409 });
+            }
+            return NextResponse.json({ error: updateError.message }, { status: 500 });
+        }
+        if (!updated?.length) {
+            return NextResponse.json({ error: "Already decided" }, { status: 400 });
+        }
 
         if (decision === "approved") {
-            // Mark project as taken
-            await supabase
-                .from("projects")
-                .update({ is_taken: true })
-                .eq("id", registration.project_id);
+            await syncProjectTaken(supabase, registration.project_id);
 
             // Email students - approved
             const studentEmails = [registration.student1_email];

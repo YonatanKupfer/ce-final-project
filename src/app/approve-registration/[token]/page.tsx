@@ -34,7 +34,7 @@ function DecisionContent() {
     const [registration, setRegistration] = useState<RegistrationData | null>(null);
     const [loading, setLoading] = useState(true);
     const [deciding, setDeciding] = useState(false);
-    const [result, setResult] = useState<"approved" | "rejected" | "already" | "invalid" | null>(null);
+    const [result, setResult] = useState<"approved" | "rejected" | "already" | "taken" | "invalid" | null>(null);
     const autoPrompted = useRef(false);
 
     useEffect(() => {
@@ -72,6 +72,11 @@ function DecisionContent() {
             });
             if (res.ok) {
                 setResult(decision);
+            } else if (res.status === 409) {
+                setResult("taken");
+            } else {
+                const data = await res.json().catch(() => null);
+                if (data?.error === "Already decided") setResult("already");
             }
         } catch {
             // ignore
@@ -106,6 +111,7 @@ function DecisionContent() {
             approved: { icon: "✅", title: "ההרשמה אושרה בהצלחה!", color: "text-green-600" },
             rejected: { icon: "❌", title: "ההרשמה נדחתה.", color: "text-red-600" },
             already: { icon: "ℹ️", title: "כבר התקבלה החלטה לגבי בקשה זו.", color: "text-blue-600" },
+            taken: { icon: "⚠️", title: "לא ניתן לאשר: הפרויקט כבר אויש על ידי הרשמה אחרת.", color: "text-yellow-600" },
             invalid: { icon: "⚠️", title: "קישור לא תקין.", color: "text-yellow-600" },
         };
         const msg = messages[result];

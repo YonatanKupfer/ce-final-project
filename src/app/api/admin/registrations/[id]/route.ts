@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
+import {
+    PROJECT_ALREADY_TAKEN, UNIQUE_VIOLATION, hasOtherApprovedRegistration, syncProjectTaken,
+} from "@/lib/registrations";
 
 export async function PUT(
     request: NextRequest,
@@ -22,28 +25,19 @@ export async function PUT(
             }
         }
 
-        // Handle project is_taken based on status transition
-        if ("status" in updateData) {
-            const { data: existing } = await supabase
-                .from("registrations")
-                .select("project_id, status")
-                .eq("id", id)
-                .single();
+        const { data: existing } = await supabase
+            .from("registrations")
+            .select("project_id, status")
+            .eq("id", id)
+            .single();
 
-            if (existing) {
-                const newStatus = updateData.status as string;
-                if (existing.status !== "approved" && newStatus === "approved") {
-                    await supabase
-                        .from("projects")
-                        .update({ is_taken: true })
-                        .eq("id", existing.project_id);
-                } else if (existing.status === "approved" && newStatus !== "approved") {
-                    await supabase
-                        .from("projects")
-                        .update({ is_taken: false })
-                        .eq("id", existing.project_id);
-                }
-            }
+        const newStatus = updateData.status as string | undefined;
+        const approving = !!existing && existing.status !== "approved" && newStatus === "approved";
+        const statusTouchesApproval = !!existing && newStatus !== undefined
+            && (existing.status === "approved" || newStatus === "approved");
+
+        if (approving && await hasOtherApprovedRegistration(supabase, existing.project_id, id)) {
+            return NextResponse.json({ error: PROJECT_ALREADY_TAKEN }, { status: 409 });
         }
 
         const { error } = await supabase
@@ -52,7 +46,14 @@ export async function PUT(
             .eq("id", id);
 
         if (error) {
+            if (error.code === UNIQUE_VIOLATION) {
+                return NextResponse.json({ error: PROJECT_ALREADY_TAKEN }, { status: 409 });
+            }
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        if (statusTouchesApproval) {
+            await syncProjectTaken(supabase, existing.project_id);
         }
 
         return NextResponse.json({ success: true });
@@ -69,19 +70,11 @@ export async function DELETE(
         const { id } = await params;
         const supabase = getAdminClient();
 
-        // If this was an approved registration, free the project
         const { data: reg } = await supabase
             .from("registrations")
             .select("project_id, status")
             .eq("id", id)
             .single();
-
-        if (reg?.status === "approved") {
-            await supabase
-                .from("projects")
-                .update({ is_taken: false })
-                .eq("id", reg.project_id);
-        }
 
         const { error } = await supabase
             .from("registrations")
@@ -90,6 +83,11 @@ export async function DELETE(
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // If this was an approved registration, free the project
+        if (reg?.status === "approved") {
+            await syncProjectTaken(supabase, reg.project_id);
         }
 
         return NextResponse.json({ success: true });
